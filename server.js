@@ -21,10 +21,11 @@ app.use(morgan("dev"));
 
 // Importation des routes
 app.use("/api/auth", require("./routes/authRoute"));
-app.use("/api/users", require("./routes/userRoute"));
+app.use("/api/tweet", require("./routes/tweetRoute"));
+//app.use("/api/users", require("./routes/userRoute")); TODO: 
 
 // WebSocket Notifications
-require("./sockets/notificationSocket")(io);
+//require("./sockets/notificationSocket")(io); TODO:
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`));
