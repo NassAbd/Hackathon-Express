@@ -1,5 +1,9 @@
 const express = require('express');
 const Tweet = require('../models/Tweet');
+const FormData = require("form-data");
+const fs = require("node:fs");
+const axios = require("axios");
+const User = require("../models/User");
 
 // @route POST api/tweets
 // @desc Create a new tweet
@@ -138,4 +142,73 @@ const delTweetById = async (req, res) => {
   }
 };
 
-module.exports = { createTweet, getTweets, getTweetById, putTweetById, delTweetById };
+// @route POST api/tweets/:id/emotion
+// @desc Edit user trends with user image
+// @access Private
+
+const addUserEmotion = async (req, res) => {
+  try {
+    if (!req.file)
+      throw new Error("No file selected");
+    if (!req.params.id)
+      throw new Error("No tweet selected");
+
+    let tweet;
+
+    try {
+      tweet = await Tweet.findById(req.params.id)
+    } catch (err) {
+      throw new Error("Tweet non trouvé.")
+    }
+
+    const listHashtag = tweet.hashtags
+
+    const formData = new FormData();
+    formData.append("file", fs.createReadStream(req.file.path));
+
+    console.log("Send request")
+    const response = await axios.post("http://localhost:5000/upload", formData, {
+      headers: {...formData.getHeaders()},
+    });
+
+    let modificator = -1;
+
+    switch (response.data.emotion) {
+      case "happy":
+        modificator = 1;
+        break;
+      case "neutral":
+        modificator = 0;
+        break;
+      case "sad":
+        modificator = 0;
+        break;
+
+    }
+
+    user = await User.findById(req.user.id)
+
+
+    tweet.hashtags.forEach((hashtag) => {
+          if (!user.trends.has(hashtag))
+            user.trends.set(hashtag, 0);
+
+
+          user.trends.set(hashtag, user.trends.get(hashtag) + modificator);
+        }
+    )
+
+    console.log(user)
+
+    user.save();
+    // console.log(response.data.emotion);
+    await fs.unlinkSync(req.file.path);
+    res.status(200).send("Tweet emotion edited");
+  } catch
+      (error) {
+    console.error(error)
+    res.status(500).send(error.message);
+  }
+}
+
+module.exports = { createTweet, getTweets, getTweetById, putTweetById, delTweetById, addUserEmotion };
