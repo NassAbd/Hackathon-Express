@@ -1,5 +1,185 @@
 const express = require('express');
 const Tweet = require('../models/Tweet');
+const { sendNotification } = require("../sockets/notificationSocket"); // Import de la fonction Socket.io
+
+const likeTweet = async (req, res) => {
+  try {
+    const tweet = await Tweet.findById(req.params.id);
+
+    if (!tweet) {
+      return res.status(404).json({ message: "Tweet non trouvé" });
+    }
+
+    // Vérifier si l'utilisateur a déjà liké
+    if (tweet.likes.includes(req.user.id)) {
+      return res.status(400).json({ message: "Vous avez déjà liké ce tweet" });
+    }
+
+    tweet.likes.push(req.user.id);
+    await tweet.save();
+
+    // Envoyer une notification
+    if (tweet.author.toString() !== req.user.id) {
+      sendNotification(tweet.author.toString(), {
+        user: tweet.author.toString(),
+        sender: req.user.id,
+        type: "like",
+        tweet: tweet._id,
+      });
+    }
+
+    res.json({ message: "Tweet liké" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+const retweetTweet = async (req, res) => {
+  try {
+    const tweet = await Tweet.findById(req.params.id);
+
+    if (!tweet) {
+      return res.status(404).json({ message: "Tweet non trouvé" });
+    }
+
+    // Vérifier si l'utilisateur a déjà retweeté
+    if (tweet.retweets.includes(req.user.id)) {
+      return res.status(400).json({ message: "Vous avez déjà retweeté ce tweet" });
+    }
+
+    tweet.retweets.push(req.user.id);
+    await tweet.save();
+
+    // Envoyer une notification
+    if (tweet.author.toString() !== req.user.id) {
+      sendNotification(tweet.author.toString(), {
+        user: tweet.author.toString(),
+        sender: req.user.id,
+        type: "retweet",
+        tweet: tweet._id,
+      });
+    }
+
+    res.json({ message: "Tweet retweeté" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+
+const replyToTweet = async (req, res) => {
+  try {
+    const { content } = req.body;
+
+    if (!content || content.trim() === "") {
+      return res.status(400).json({ message: "La réponse ne peut pas être vide" });
+    }
+
+    const parentTweet = await Tweet.findById(req.params.id);
+
+    if (!parentTweet) {
+      return res.status(404).json({ message: "Tweet non trouvé" });
+    }
+
+    const newReply = new Tweet({
+      author: req.user.id,
+      content,
+      replies: [],
+    });
+
+    await newReply.save();
+
+    // Ajouter la réponse au tweet original
+    parentTweet.replies.push(newReply._id);
+    await parentTweet.save();
+
+    // Envoyer une notification
+    if (parentTweet.author.toString() !== req.user.id) {
+      sendNotification(parentTweet.author.toString(), {
+        user: parentTweet.author.toString(),
+        sender: req.user.id,
+        type: "reply",
+        tweet: parentTweet._id,
+      });
+    }
+
+    res.status(201).json(newReply);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+
+const followUser = async (req, res) => {
+  try {
+    const userToFollow = await User.findById(req.params.id);
+
+    if (!userToFollow) {
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
+    }
+
+    if (userToFollow.followers.includes(req.user.id)) {
+      return res.status(400).json({ message: "Vous suivez déjà cet utilisateur" });
+    }
+
+    userToFollow.followers.push(req.user.id);
+    await userToFollow.save();
+
+    // Envoyer une notification
+    if (userToFollow._id.toString() !== req.user.id) {
+      sendNotification(userToFollow._id.toString(), {
+        user: userToFollow._id.toString(),
+        sender: req.user.id,
+        type: "follow",
+      });
+    }
+
+    res.json({ message: "Utilisateur suivi" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+const mentionUser = async (req, res) => {
+  try {
+    const { content, mentions } = req.body;
+
+    if (!content || content.trim() === "") {
+      return res.status(400).json({ message: "Le tweet ne peut pas être vide" });
+    }
+
+    const newTweet = new Tweet({
+      author: req.user.id,
+      content,
+      mentions,
+    });
+
+    await newTweet.save();
+
+    // Envoyer une notification aux utilisateurs mentionnés
+    mentions.forEach((userId) => {
+      if (userId !== req.user.id) {
+        sendNotification(userId, {
+          user: userId,
+          sender: req.user.id,
+          type: "mention",
+          tweet: newTweet._id,
+        });
+      }
+    });
+
+    res.status(201).json(newTweet);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+
 
 // @route POST api/tweets
 // @desc Create a new tweet
@@ -138,4 +318,4 @@ const delTweetById = async (req, res) => {
   }
 };
 
-module.exports = { createTweet, getTweets, getTweetById, putTweetById, delTweetById };
+module.exports = { likeTweet, retweetTweet, replyToTweet, mentionUser, followUser, createTweet, getTweets, getTweetById, putTweetById, delTweetById };
