@@ -1,5 +1,5 @@
 const express = require('express');
-const {createTweet, getTweets, getTweetById, putTweetById, delTweetById, addUserEmotion} = require('../controllers/tweetController');
+const {createTweet, getTweets, getTweetById, putTweetById, delTweetById, addUserEmotion, likeTweet, saveTweet, reTweet, mentionUser} = require('../controllers/tweetController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const multer = require("../middlewares/multer");
 const axios = require("axios");
@@ -16,6 +16,11 @@ router.get('/', authMiddleware, getTweets);
 router.get('/:id', authMiddleware, getTweetById);
 router.put('/:id', authMiddleware, putTweetById);
 router.delete('/:id', authMiddleware, delTweetById);
+
+router.put('/like/:id', authMiddleware, likeTweet);
+router.put('/save/:id', authMiddleware, saveTweet);
+router.put('/retweet/:id', authMiddleware, reTweet);
+router.put('/mention/:id', authMiddleware, mentionUser);
 
 router.post("/:id/emotion", authMiddleware, multer.single("image"), addUserEmotion)
 
