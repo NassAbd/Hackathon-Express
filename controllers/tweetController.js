@@ -72,16 +72,74 @@ const controller = (usersList) => {
 // @desc Get all tweets
 // @access Private
 
-    const getTweets = async (req, res) => {
-        try {
-            // Récupération des tweets par ordre décroissant de création
-            const tweets = await Tweet.find({author: req.user.id}).sort({createdAt: -1});
-            res.json(tweets);
-        } catch (err) {
-            console.error(err.message);
-            res.status(500).send("Erreur serveur");
-        }
-    };
+const getTweets = async (req, res) => {
+    try {
+      // Récupération des tweets par ordre décroissant de création
+      const tweets = await Tweet.find({ author: req.user.id }).sort({ createdAt: -1 });
+      res.json(tweets);
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send("Erreur serveur");
+    }
+  };
+  
+const getPersonalizedFeed = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId).populate("following");
+
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur non trouvé." });
+    }
+
+    // 📌 1️⃣ Récupérer les tweets des personnes suivies
+    const followingIds = user.following.map(user => user._id);
+
+    // 📌 2️⃣ Récupérer les hashtags préférés (via trends)
+    const hashtagScores = user.trends || new Map();
+    const preferredHashtags = [...hashtagScores.keys()];
+
+    // 📌 3️⃣ Récupérer les tweets pertinents
+    let tweets = await Tweet.find({
+      $or: [
+        { author: { $in: followingIds } },
+        { hashtags: { $in: preferredHashtags } }
+      ],
+      author: { $ne: userId } // ❌ Exclure les tweets de l'utilisateur
+    })
+      .populate("author", "username avatar")
+      .lean(); // Utiliser lean() pour éviter les objets Mongoose
+
+    // 📌 4️⃣ Ajouter un champ `engagementScore`
+    const scoredTweets = tweets.map(tweet => {
+      const engagementScore =
+        (tweet.likes?.length || 0) * 1 +
+        (tweet.retweets?.length || 0) * 2 +
+        (tweet.replies?.length || 0) * 3;
+
+      return { ...tweet, engagementScore };
+    });
+
+    // 📌 Trier par `engagementScore` en DESC
+    scoredTweets.sort((a, b) => b.engagementScore - a.engagementScore);
+
+    // 📌 5️⃣ Si aucun tweet pertinent, renvoyer des tweets populaires
+    if (scoredTweets.length === 0) {
+      tweets = await Tweet.find({ author: { $ne: userId } })
+        .populate("author", "username avatar")
+        .sort({ createdAt: -1 }) // On trie uniquement par date pour éviter l'erreur
+        .limit(50);
+
+      return res.status(200).json(tweets);
+    }
+
+    res.status(200).json(scoredTweets);
+  } catch (error) {
+    console.error("❌ Erreur lors de la récupération du fil :", error);
+    res.status(500).json({ message: "Erreur serveur.", error });
+  }
+  };
+  
 
 // @route GET api/tweets/:id
 // @desc Get tweet by ID
@@ -441,6 +499,7 @@ const controller = (usersList) => {
     return {
         createTweet,
         getTweets,
+        getPersonalizedFeed,
         getTweetById,
         putTweetById,
         delTweetById,
