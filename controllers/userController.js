@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const router = require("../routes/authRoute");
+const sendNotification = require("../sockets/sendNotification");
 
 
 const controller = (usersList) => {
@@ -90,6 +91,12 @@ const controller = (usersList) => {
                     type: "follow",
                 });
 
+                // Envoyer un message WebSocket
+                await sendNotification(usersList, userIdToFollow, {
+                    user: currentUser.username,
+                    message: "Vien de t'unfollow"
+                })
+
                 return res.status(200).json({message: "Utilisateur unfollow avec succès et notification supprimée."});
             } else {
                 // Si l'utilisateur n'est pas suivi, on le follow
@@ -105,6 +112,12 @@ const controller = (usersList) => {
                     sender: currentUser._id,
                     type: "follow",
                 });
+
+                // Envoyer un message WebSocket
+                await sendNotification(usersList, userIdToFollow, {
+                    user: currentUser.username,
+                    message: "Vien de te follow"
+                })
 
                 await followNotification.save();
 
