@@ -22,6 +22,7 @@ app.use(morgan("dev"));
 // Importation des routes
 app.use("/api/auth", require("./routes/authRoute"));
 app.use("/api/tweet", require("./routes/tweetRoute"));
+app.use("/api/notification", require("./routes/notificationRoute"));
 //app.use("/api/users", require("./routes/userRoute")); TODO: 
 
 // WebSocket Notifications

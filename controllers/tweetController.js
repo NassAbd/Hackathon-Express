@@ -4,35 +4,66 @@ const FormData = require("form-data");
 const fs = require("node:fs");
 const axios = require("axios");
 const User = require("../models/User");
+const Notification = require('../models/Notification');
 
 // @route POST api/tweets
 // @desc Create a new tweet
 // @access Private
 
 const createTweet = async (req, res) => {
-    try {
-      const { content, media, hashtags, mentions } = req.body;
-  
-      // Vérification du contenu du tweet
-      if (!content || content.trim() === "") {
-        return res.status(400).json({ error: "Le tweet ne peut pas être vide" });
-      }
-  
-      const newTweet = new Tweet({
-        author: req.user.id,
-        content,
-        media: media || "", 
-        hashtags: hashtags || [], 
-        mentions: mentions || [], 
-      });
-  
-      const tweet = await newTweet.save();
-      res.status(201).json(tweet);
-    } catch (err) {
-      console.error(err.message);
-      res.status(500).send("Erreur serveur");
+  try {
+    const { content, media, hashtags, mentions, replyTo } = req.body;
+
+    // Vérification du contenu du tweet
+    if (!content || content.trim() === "") {
+      return res.status(400).json({ error: "Le tweet ne peut pas être vide" });
     }
-  };
+
+    // Création du tweet
+    const newTweet = new Tweet({
+      author: req.user.id,
+      content,
+      media: media || "",
+      hashtags: hashtags || [],
+      mentions: mentions || [],
+    });
+
+    // Sauvegarde du tweet
+    const tweet = await newTweet.save();
+
+    // Si le tweet est une réponse, mise à jour du tweet parent
+    if (replyTo) {
+      const parentTweet = await Tweet.findById(replyTo);
+      if (!parentTweet) {
+        return res.status(404).json({ error: "Tweet parent non trouvé" });
+      }
+
+      // Ajouter la réponse au tweet parent
+      parentTweet.replies.push(tweet._id);
+      await parentTweet.save();
+
+      tweet.replyTo = parentTweet._id;
+      await tweet.save();
+
+      // Création d'une notification pour l'auteur du tweet parent
+      if (parentTweet.author.toString() !== req.user.id) {
+        const notification = new Notification({
+          user: parentTweet.author,  // L'auteur du tweet parent reçoit la notif
+          sender: req.user.id,       // L'utilisateur qui a répondu
+          type: "reply",
+          tweet: tweet._id,          // Le tweet de réponse
+        });
+
+        await notification.save();
+      }
+    }
+
+    res.status(201).json(tweet);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Erreur serveur");
+  }
+};
 
 // @route GET api/tweets
 // @desc Get all tweets

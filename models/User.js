@@ -9,6 +9,13 @@ const UserSchema = new mongoose.Schema({
     wallpaper: {type: String, default: ""},
     followers: [{type: mongoose.Schema.Types.ObjectId, ref: "User"}],
     following: [{type: mongoose.Schema.Types.ObjectId, ref: "User"}],
+    notificationPreferences: {
+      like: { type: Boolean, default: true },
+      retweet: { type: Boolean, default: true },
+      reply: { type: Boolean, default: true },
+      mention: { type: Boolean, default: true },
+      follow: { type: Boolean, default: true }
+    },
     createdAt: {type: Date, default: Date.now},
     trends: {
         type: Map,
