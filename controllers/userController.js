@@ -1,9 +1,15 @@
-const Post = require('../models/User');
-const auth = require('../middlewares/authMiddleware');
-
-// controllers/userController.js
-
 const User = require('../models/User');
+
+// Fonction pour récupérer tous les utilisateurs
+
+exports.getUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('username avatar bio');
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur.', error });
+  }
+};
 
 // Fonction pour obtenir les informations d'un utilisateur par ID
 exports.getUserById = async (req, res) => {
