@@ -29,7 +29,7 @@ app.use(morgan("dev"));
 app.use("/api/auth", require("./routes/authRoute"));
 app.use("/api/tweet", require("./routes/tweetRoute"));
 app.use("/api/notification", require("./routes/notificationRoute"));
-app.use("/api/users", require("./routes/userRoute")); 
+app.use("/api/users", require("./routes/userRoute")(listUserConnected));
 
 // WebSocket Notifications
 //require("./sockets/notificationSocket")(io); TODO:

@@ -18,6 +18,8 @@ const router = (usersList) => {
     route.put('/update/:id', authMiddleware, updateUserById);
     route.get('/followers/:id', authMiddleware, getUserFollowers);
     route.put('/follow/:id', authMiddleware, followUserById);
+
+    return route
 }
 
 module.exports = router;
