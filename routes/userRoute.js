@@ -1,13 +1,23 @@
 const express = require("express");
-const { getUsers, getUserById,updateUserById,getUserFollowers,followUserById } = require("../controllers/userController");
 const authMiddleware = require("../middlewares/authMiddleware");
 
-const router = express.Router();
+const router = (usersList) => {
 
-router.get("/", authMiddleware, getUsers);
-router.get('/:id', authMiddleware, getUserById);
-router.put('/update/:id', authMiddleware, updateUserById);
-router.get('/followers/:id', authMiddleware,  getUserFollowers);
-router.put('/follow/:id', authMiddleware, followUserById);
+
+    const {
+        getUsers,
+        getUserById,
+        updateUserById,
+        getUserFollowers,
+        followUserById
+    } = require("../controllers/userController")(usersList);
+    const route = express.Router();
+
+    route.get("/", authMiddleware, getUsers);
+    route.get('/:id', authMiddleware, getUserById);
+    route.put('/update/:id', authMiddleware, updateUserById);
+    route.get('/followers/:id', authMiddleware, getUserFollowers);
+    route.put('/follow/:id', authMiddleware, followUserById);
+}
 
 module.exports = router;

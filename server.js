@@ -15,6 +15,12 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 connectDB();
 
+// Liste des instance de socket.io client connecter a l'app
+const listUserConnected = {};
+
+require("./sockets/initialisation")(io, listUserConnected);
+
+
 app.use(express.json());
 app.use(cors());
 app.use(morgan("dev"));
