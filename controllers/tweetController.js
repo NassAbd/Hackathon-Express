@@ -5,414 +5,451 @@ const fs = require("node:fs");
 const axios = require("axios");
 const User = require("../models/User");
 const Notification = require('../models/Notification');
+const sendNotification = require("../sockets/sendNotification");
+
+const controller = (usersList) => {
 
 // @route POST api/tweets
 // @desc Create a new tweet
 // @access Private
 
-const createTweet = async (req, res) => {
-  try {
-    const { content, media, hashtags, mentions, replyTo } = req.body;
+    const createTweet = async (req, res) => {
+        try {
+            const {content, media, hashtags, mentions, replyTo} = req.body;
 
-    // Vérification du contenu du tweet
-    if (!content || content.trim() === "") {
-      return res.status(400).json({ error: "Le tweet ne peut pas être vide" });
-    }
+            // Vérification du contenu du tweet
+            if (!content || content.trim() === "") {
+                return res.status(400).json({error: "Le tweet ne peut pas être vide"});
+            }
 
-    // Création du tweet
-    const newTweet = new Tweet({
-      author: req.user.id,
-      content,
-      media: media || "",
-      hashtags: hashtags || [],
-      mentions: mentions || [],
-    });
+            // Création du tweet
+            const newTweet = new Tweet({
+                author: req.user.id,
+                content,
+                media: media || "",
+                hashtags: hashtags || [],
+                mentions: mentions || [],
+            });
 
-    // Sauvegarde du tweet
-    const tweet = await newTweet.save();
+            // Sauvegarde du tweet
+            const tweet = await newTweet.save();
 
-    // Si le tweet est une réponse, mise à jour du tweet parent
-    if (replyTo) {
-      const parentTweet = await Tweet.findById(replyTo);
-      if (!parentTweet) {
-        return res.status(404).json({ error: "Tweet parent non trouvé" });
-      }
+            // Si le tweet est une réponse, mise à jour du tweet parent
+            if (replyTo) {
+                const parentTweet = await Tweet.findById(replyTo);
+                if (!parentTweet) {
+                    return res.status(404).json({error: "Tweet parent non trouvé"});
+                }
 
-      // Ajouter la réponse au tweet parent
-      parentTweet.replies.push(tweet._id);
-      await parentTweet.save();
+                // Ajouter la réponse au tweet parent
+                parentTweet.replies.push(tweet._id);
+                await parentTweet.save();
 
-      tweet.replyTo = parentTweet._id;
-      await tweet.save();
+                tweet.replyTo = parentTweet._id;
+                await tweet.save();
 
-      // Création d'une notification pour l'auteur du tweet parent
-      if (parentTweet.author.toString() !== req.user.id) {
-        const notification = new Notification({
-          user: parentTweet.author,  // L'auteur du tweet parent reçoit la notif
-          sender: req.user.id,       // L'utilisateur qui a répondu
-          type: "reply",
-          tweet: tweet._id,          // Le tweet de réponse
-        });
+                // Création d'une notification pour l'auteur du tweet parent
+                if (parentTweet.author.toString() !== req.user.id) {
+                    const notification = new Notification({
+                        user: parentTweet.author,  // L'auteur du tweet parent reçoit la notif
+                        sender: req.user.id,       // L'utilisateur qui a répondu
+                        type: "reply",
+                        tweet: tweet._id,          // Le tweet de réponse
+                    });
 
-        await notification.save();
-      }
-    }
+                    await notification.save();
+                }
+            }
 
-    res.status(201).json(tweet);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Erreur serveur");
-  }
-};
+            res.status(201).json(tweet);
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send("Erreur serveur");
+        }
+    };
 
 // @route GET api/tweets
 // @desc Get all tweets
 // @access Private
 
-const getTweets = async (req, res) => {
-    try {
-      // Récupération des tweets par ordre décroissant de création
-      const tweets = await Tweet.find({ author: req.user.id }).sort({ createdAt: -1 });
-      res.json(tweets);
-    } catch (err) {
-      console.error(err.message);
-      res.status(500).send("Erreur serveur");
-    }
-  };
+    const getTweets = async (req, res) => {
+        try {
+            // Récupération des tweets par ordre décroissant de création
+            const tweets = await Tweet.find({author: req.user.id}).sort({createdAt: -1});
+            res.json(tweets);
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send("Erreur serveur");
+        }
+    };
 
 // @route GET api/tweets/:id
 // @desc Get tweet by ID
 // @access Private
 
-const getTweetById = async (req, res) => {
-    try {
-      const tweet = await Tweet.findById(req.params.id);
-  
-      if (!tweet) {
-        return res.status(404).json({ message: "Tweet non trouvé" });
-      }
-  
-      if (tweet.author.toString() !== req.user.id) {
-        return res.status(401).json({ message: "Vous n'êtes pas l'auteur de ce tweet" });
-      }
-  
-      res.json(tweet);
-    } catch (err) {
-      console.error(err.message);
-      if (err.kind === "ObjectId") {
-        return res.status(404).json({ message: "Tweet non trouvé" });
-      }
-      res.status(500).send("Erreur serveur");
-    }
-  };
+    const getTweetById = async (req, res) => {
+        try {
+            const tweet = await Tweet.findById(req.params.id);
+
+            if (!tweet) {
+                return res.status(404).json({message: "Tweet non trouvé"});
+            }
+
+            if (tweet.author.toString() !== req.user.id) {
+                return res.status(401).json({message: "Vous n'êtes pas l'auteur de ce tweet"});
+            }
+
+            res.json(tweet);
+        } catch (err) {
+            console.error(err.message);
+            if (err.kind === "ObjectId") {
+                return res.status(404).json({message: "Tweet non trouvé"});
+            }
+            res.status(500).send("Erreur serveur");
+        }
+    };
 
 // @route PUT api/tweets/:id
 // @desc Update a tweet
 // @access Private
 
-const putTweetById = async (req, res) => {
-    try {
-      const { content, media, hashtags, mentions } = req.body;
-      const tweet = await Tweet.findById(req.params.id);
+    const putTweetById = async (req, res) => {
+        try {
+            const {content, media, hashtags, mentions} = req.body;
+            const tweet = await Tweet.findById(req.params.id);
 
-        if (!tweet) {
-        return res.status(404).json({ message: "Tweet non trouvé" });
-      }
+            if (!tweet) {
+                return res.status(404).json({message: "Tweet non trouvé"});
+            }
 
-      if (tweet.author.toString()!== req.user.id) {
-        return res.status(401).json({ message: "Vous n'êtes pas l'auteur de ce tweet" });
-      }
+            if (tweet.author.toString() !== req.user.id) {
+                return res.status(401).json({message: "Vous n'êtes pas l'auteur de ce tweet"});
+            }
 
-      tweet.content = content;
-      tweet.media = media;
-      tweet.hashtags = hashtags;
-      tweet.mentions = mentions;
+            tweet.content = content;
+            tweet.media = media;
+            tweet.hashtags = hashtags;
+            tweet.mentions = mentions;
 
-      await tweet.save();
-      res.json(tweet);
-    } catch (err) {
-        console.error(err.message);
-        if (err.kind === "ObjectId") {
-        return res.status(404).json({ message: "Tweet non trouvé" });
-      }
-      res.status(500).send("Erreur serveur");
-    }
-};
+            await tweet.save();
+            res.json(tweet);
+        } catch (err) {
+            console.error(err.message);
+            if (err.kind === "ObjectId") {
+                return res.status(404).json({message: "Tweet non trouvé"});
+            }
+            res.status(500).send("Erreur serveur");
+        }
+    };
 
 // @route DELETE api/tweets/:id
 // @desc Delete a tweet
 // @access Private
 
-const delTweetById = async (req, res) => {
-  try {
-    // Vérifier si le tweet existe et récupérer son auteur
-    const tweet = await Tweet.findById(req.params.id);
+    const delTweetById = async (req, res) => {
+        try {
+            // Vérifier si le tweet existe et récupérer son auteur
+            const tweet = await Tweet.findById(req.params.id);
 
-    if (!tweet) {
-      return res.status(404).json({ message: "Tweet non trouvé" });
-    }
+            if (!tweet) {
+                return res.status(404).json({message: "Tweet non trouvé"});
+            }
 
-    // Vérifier si l'utilisateur est bien l'auteur
-    if (tweet.author.toString() !== req.user.id) {
-      return res.status(403).json({ message: "Action non autorisée" });
-    }
+            // Vérifier si l'utilisateur est bien l'auteur
+            if (tweet.author.toString() !== req.user.id) {
+                return res.status(403).json({message: "Action non autorisée"});
+            }
 
-    // Supprimer le tweet
-    await Tweet.findByIdAndDelete(req.params.id);
+            // Supprimer le tweet
+            await Tweet.findByIdAndDelete(req.params.id);
 
-    res.json({ message: "Tweet supprimé avec succès" });
-  } catch (err) {
-    console.error(err.message);
+            res.json({message: "Tweet supprimé avec succès"});
+        } catch (err) {
+            console.error(err.message);
 
-    // Gérer l'erreur si l'ID est invalide
-    if (err.name === "CastError") {
-      return res.status(400).json({ message: "ID invalide" });
-    }
+            // Gérer l'erreur si l'ID est invalide
+            if (err.name === "CastError") {
+                return res.status(400).json({message: "ID invalide"});
+            }
 
-    res.status(500).send("Erreur serveur");
-  }
-};
+            res.status(500).send("Erreur serveur");
+        }
+    };
 
-const likeTweet = async (req, res) => {
-  try {
-    const userId = req.user.id;
+    const likeTweet = async (req, res) => {
+        try {
+            const userId = req.user.id;
 
-    // Vérifier si le tweet existe
-    const tweet = await Tweet.findById(req.params.id);
-    if (!tweet) {
-      return res.status(404).json({ message: "Tweet non trouvé" });
-    }
+            // Vérifier si le tweet existe
+            const tweet = await Tweet.findById(req.params.id);
+            if (!tweet) {
+                return res.status(404).json({message: "Tweet non trouvé"});
+            }
 
-    // Vérifier si l'utilisateur a déjà liké le tweet
-    const isLiked = tweet.likes.includes(userId);
+            // Vérifier si l'utilisateur a déjà liké le tweet
+            const isLiked = tweet.likes.includes(userId);
 
-    if (isLiked) {
-      // Supprimer le like
-      tweet.likes = tweet.likes.filter((id) => id.toString() !== userId);
+            if (isLiked) {
+                // Supprimer le like
+                tweet.likes = tweet.likes.filter((id) => id.toString() !== userId);
 
-      // Supprimer la notification associée
-      await Notification.findOneAndDelete({
-        user: tweet.author,
-        sender: userId,
-        type: "like",
-        tweet: tweet._id,
-      });
-    } else {
-      // Ajouter le like
-      tweet.likes.push(userId);
+                // Supprimer la notification associée
+                await Notification.findOneAndDelete({
+                    user: tweet.author,
+                    sender: userId,
+                    type: "like",
+                    tweet: tweet._id,
+                });
+            } else {
+                // Ajouter le like
+                tweet.likes.push(userId);
 
-      // Créer une notification si ce n'est pas l'auteur qui like son propre tweet
-      if (tweet.author.toString() !== userId) {
-        const notification = new Notification({
-          user: tweet.author,
-          sender: userId,
-          type: "like",
-          tweet: tweet._id
-        });
-        await notification.save();
-      }
-    }
+                // Créer une notification si ce n'est pas l'auteur qui like son propre tweet
+                if (tweet.author.toString() !== userId) {
+                    const notification = new Notification({
+                        user: tweet.author,
+                        sender: userId,
+                        type: "like",
+                        tweet: tweet._id
+                    });
+                    await notification.save();
 
-    await tweet.save();
-    res.status(200).json({ likes: tweet.likes.length, liked: !isLiked });
-  } catch (error) {
-    console.error("❌ Erreur lors du like :", error);
-    res.status(500).json({ message: "Erreur serveur" });
-  }
-};
+                    await sendNotification(usersList, tweet.author.id, {
+                        user: userId,
+                        tweet: tweet.id,
+                        message: "A liker votre post"
+                    })
+                }
+            }
 
-const saveTweet = async (req, res) => {
-  try {
-    const userId = req.user.id;
+            await tweet.save();
+            res.status(200).json({likes: tweet.likes.length, liked: !isLiked});
+        } catch (error) {
+            console.error("❌ Erreur lors du like :", error);
+            res.status(500).json({message: "Erreur serveur"});
+        }
+    };
 
-    // Vérifier si le tweet existe
-    const tweet = await Tweet.findById(req.params.id);
-    if (!tweet) {
-      return res.status(404).json({ message: "Tweet non trouvé" });
-    }
+    const saveTweet = async (req, res) => {
+        try {
+            const userId = req.user.id;
 
-    // Vérifier si l'utilisateur a déjà enregistré le tweet
-    const isSaved = tweet.saved.includes(userId);
+            // Vérifier si le tweet existe
+            const tweet = await Tweet.findById(req.params.id);
+            if (!tweet) {
+                return res.status(404).json({message: "Tweet non trouvé"});
+            }
 
-    if (isSaved) {
-      // Supprimer le tweet des sauvegardes
-      tweet.saved = tweet.saved.filter((id) => id.toString() !== userId);
-    } else {
-      // Ajouter le tweet aux sauvegardes
-      tweet.saved.push(userId);
-    }
+            // Vérifier si l'utilisateur a déjà enregistré le tweet
+            const isSaved = tweet.saved.includes(userId);
 
-    await tweet.save();
-    res.status(200).json({ savedCount: tweet.saved.length, saved: !isSaved });
-  } catch (error) {
-    console.error("❌ Erreur lors de la sauvegarde du tweet :", error);
-    res.status(500).json({ message: "Erreur serveur" });
-  }
-};
+            if (isSaved) {
+                // Supprimer le tweet des sauvegardes
+                tweet.saved = tweet.saved.filter((id) => id.toString() !== userId);
+            } else {
+                // Ajouter le tweet aux sauvegardes
+                tweet.saved.push(userId);
+            }
 
-const reTweet = async (req, res) => {
-  try {
-    const userId = req.user.id;
+            await tweet.save();
+            res.status(200).json({savedCount: tweet.saved.length, saved: !isSaved});
+        } catch (error) {
+            console.error("❌ Erreur lors de la sauvegarde du tweet :", error);
+            res.status(500).json({message: "Erreur serveur"});
+        }
+    };
 
-    // Vérifier si le tweet existe
-    const tweet = await Tweet.findById(req.params.id);
-    if (!tweet) {
-      return res.status(404).json({ message: "Tweet non trouvé" });
-    }
+    const reTweet = async (req, res) => {
+        try {
+            const userId = req.user.id;
 
-    // Vérifier si l'utilisateur a déjà retweeté le tweet
-    const isRetweeted = tweet.retweets.includes(userId);
+            // Vérifier si le tweet existe
+            const tweet = await Tweet.findById(req.params.id);
+            if (!tweet) {
+                return res.status(404).json({message: "Tweet non trouvé"});
+            }
 
-    if (isRetweeted) {
-      // Supprimer le retweet
-      tweet.retweets = tweet.retweets.filter((id) => id.toString() !== userId);
+            // Vérifier si l'utilisateur a déjà retweeté le tweet
+            const isRetweeted = tweet.retweets.includes(userId);
 
-      // Supprimer la notification associée
-      await Notification.findOneAndDelete({
-        user: tweet.author,
-        sender: userId,
-        type: "retweet",
-        tweet: tweet._id,
-      });
-    } else {
-      // Ajouter le retweet
-      tweet.retweets.push(userId);
+            if (isRetweeted) {
+                // Supprimer le retweet
+                tweet.retweets = tweet.retweets.filter((id) => id.toString() !== userId);
 
-      // Créer une notification pour l'auteur du tweet
-      if (tweet.author.toString() !== userId) {
-        const notification = new Notification({
-          user: tweet.author,
-          sender: userId,
-          type: "retweet",
-          tweet: tweet._id,
-        });
-        await notification.save();
-      }
-    }
+                // Supprimer la notification associée
+                await Notification.findOneAndDelete({
+                    user: tweet.author,
+                    sender: userId,
+                    type: "retweet",
+                    tweet: tweet._id,
+                });
+            } else {
+                // Ajouter le retweet
+                tweet.retweets.push(userId);
 
-    await tweet.save();
-    res.status(200).json({ retweetsCount: tweet.retweets.length, retweeted: !isRetweeted });
-  } catch (error) {
-    console.error("❌ Erreur lors du retweet :", error);
-    res.status(500).json({ message: "Erreur serveur" });
-  }
-};
+                // Créer une notification pour l'auteur du tweet
+                if (tweet.author.toString() !== userId) {
+                    const notification = new Notification({
+                        user: tweet.author,
+                        sender: userId,
+                        type: "retweet",
+                        tweet: tweet._id,
+                    });
+                    await notification.save();
+                    await sendNotification(usersList, tweet.author.id, {
+                        user: userId,
+                        tweet: tweet.id,
+                        message: "A reTweet votre post"
+                    })
+                }
+            }
 
-const mentionUser = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { mentionedUsers } = req.body; // Tableau contenant les IDs des utilisateurs mentionnés
+            await tweet.save();
+            res.status(200).json({retweetsCount: tweet.retweets.length, retweeted: !isRetweeted});
+        } catch (error) {
+            console.error("❌ Erreur lors du retweet :", error);
+            res.status(500).json({message: "Erreur serveur"});
+        }
+    };
 
-    // Vérifier si le tweet existe
-    const tweet = await Tweet.findById(req.params.id);
-    if (!tweet) {
-      return res.status(404).json({ message: "Tweet non trouvé" });
-    }
+    const mentionUser = async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const {mentionedUsers} = req.body; // Tableau contenant les IDs des utilisateurs mentionnés
 
-    // Vérifier si les utilisateurs mentionnés existent
-    const validUsers = await User.find({ _id: { $in: mentionedUsers } });
-    const validUserIds = validUsers.map((user) => user._id.toString());
+            // Vérifier si le tweet existe
+            const tweet = await Tweet.findById(req.params.id);
+            if (!tweet) {
+                return res.status(404).json({message: "Tweet non trouvé"});
+            }
 
-    // Filtrer les nouveaux utilisateurs mentionnés (éviter les doublons et l'auto-mention)
-    const newMentions = validUserIds.filter(
-      (id) => !tweet.mentions.includes(id) && id !== userId
-    );
+            // Vérifier si les utilisateurs mentionnés existent
+            const validUsers = await User.find({_id: {$in: mentionedUsers}});
+            const validUserIds = validUsers.map((user) => user._id.toString());
 
-    if (newMentions.length === 0) {
-      return res.status(400).json({ message: "Aucune nouvelle mention à ajouter" });
-    }
+            // Filtrer les nouveaux utilisateurs mentionnés (éviter les doublons et l'auto-mention)
+            const newMentions = validUserIds.filter(
+                (id) => !tweet.mentions.includes(id) && id !== userId
+            );
 
-    // Ajouter les nouvelles mentions au tweet
-    tweet.mentions.push(...newMentions);
-    await tweet.save();
+            if (newMentions.length === 0) {
+                return res.status(400).json({message: "Aucune nouvelle mention à ajouter"});
+            }
 
-    // Créer des notifications pour les utilisateurs mentionnés
-    const notifications = newMentions.map((mentionedUserId) => ({
-      user: mentionedUserId,
-      sender: userId,
-      type: "mention",
-      tweet: tweet._id,
-    }));
+            // Ajouter les nouvelles mentions au tweet
+            tweet.mentions.push(...newMentions);
+            await tweet.save();
 
-    await Notification.insertMany(notifications);
+            // Créer des notifications pour les utilisateurs mentionnés
+            const notifications = newMentions.map((mentionedUserId) => ({
+                user: mentionedUserId,
+                sender: userId,
+                type: "mention",
+                tweet: tweet._id,
+            }));
 
-    res.status(200).json({
-      message: "Mentions ajoutées et notifications envoyées",
-      mentions: tweet.mentions,
-    });
-  } catch (error) {
-    console.error("❌ Erreur lors de l'ajout de mentions :", error);
-    res.status(500).json({ message: "Erreur serveur" });
-  }
-};
+            await Notification.insertMany(notifications);
+
+            for (notification of notifications) {
+
+                await sendNotification(usersList, mentionedUserId, {
+                    user: userId,
+                    tweet: tweet.id,
+                    message: "Vous a mentionné"
+                })
+            }
+
+            res.status(200).json({
+                message: "Mentions ajoutées et notifications envoyées",
+                mentions: tweet.mentions,
+            });
+        } catch (error) {
+            console.error("❌ Erreur lors de l'ajout de mentions :", error);
+            res.status(500).json({message: "Erreur serveur"});
+        }
+    };
 
 // @route POST api/tweets/:id/emotion
 // @desc Edit user trends with user image
 // @access Private
 
-const addUserEmotion = async (req, res) => {
-  try {
-    if (!req.file)
-      throw new Error("No file selected");
-    if (!req.params.id)
-      throw new Error("No tweet selected");
+    const addUserEmotion = async (req, res) => {
+        try {
+            if (!req.file)
+                throw new Error("No file selected");
+            if (!req.params.id)
+                throw new Error("No tweet selected");
 
-    let tweet;
+            let tweet;
 
-    try {
-      tweet = await Tweet.findById(req.params.id)
-    } catch (err) {
-      throw new Error("Tweet non trouvé.")
-    }
+            try {
+                tweet = await Tweet.findById(req.params.id)
+            } catch (err) {
+                throw new Error("Tweet non trouvé.")
+            }
 
-    const listHashtag = tweet.hashtags
+            const listHashtag = tweet.hashtags
 
-    const formData = new FormData();
-    formData.append("file", fs.createReadStream(req.file.path));
+            const formData = new FormData();
+            formData.append("file", fs.createReadStream(req.file.path));
 
-    console.log("Send request")
-    const response = await axios.post("http://localhost:5000/upload", formData, {
-      headers: {...formData.getHeaders()},
-    });
+            console.log("Send request")
+            const response = await axios.post("http://localhost:5000/upload", formData, {
+                headers: {...formData.getHeaders()},
+            });
 
-    let modificator = -1;
+            let modificator = -1;
 
-    switch (response.data.emotion) {
-      case "happy":
-        modificator = 1;
-        break;
-      case "neutral":
-        modificator = 0;
-        break;
-      case "sad":
-        modificator = 0;
-        break;
+            switch (response.data.emotion) {
+                case "happy":
+                    modificator = 1;
+                    break;
+                case "neutral":
+                    modificator = 0;
+                    break;
+                case "sad":
+                    modificator = 0;
+                    break;
 
-    }
+            }
 
-    user = await User.findById(req.user.id)
-
-
-    tweet.hashtags.forEach((hashtag) => {
-          if (!user.trends.has(hashtag))
-            user.trends.set(hashtag, 0);
+            user = await User.findById(req.user.id)
 
 
-          user.trends.set(hashtag, user.trends.get(hashtag) + modificator);
+            tweet.hashtags.forEach((hashtag) => {
+                    if (!user.trends.has(hashtag))
+                        user.trends.set(hashtag, 0);
+
+
+                    user.trends.set(hashtag, user.trends.get(hashtag) + modificator);
+                }
+            )
+
+            console.log(user)
+
+            user.save();
+            // console.log(response.data.emotion);
+            await fs.unlinkSync(req.file.path);
+            res.status(200).send("Tweet emotion edited");
+        } catch
+            (error) {
+            console.error(error)
+            res.status(500).send(error.message);
         }
-    )
+    }
 
-    console.log(user)
-
-    user.save();
-    // console.log(response.data.emotion);
-    await fs.unlinkSync(req.file.path);
-    res.status(200).send("Tweet emotion edited");
-  } catch
-      (error) {
-    console.error(error)
-    res.status(500).send(error.message);
-  }
+    return {
+        createTweet,
+        getTweets,
+        getTweetById,
+        putTweetById,
+        delTweetById,
+        addUserEmotion,
+        likeTweet,
+        saveTweet,
+        reTweet,
+        mentionUser
+    }
 }
 
-module.exports = { createTweet, getTweets, getTweetById, putTweetById, delTweetById, addUserEmotion, likeTweet, saveTweet, reTweet, mentionUser};
+module.exports = controller;

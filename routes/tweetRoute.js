@@ -1,27 +1,38 @@
 const express = require('express');
-const {createTweet, getTweets, getTweetById, putTweetById, delTweetById, addUserEmotion, likeTweet, saveTweet, reTweet, mentionUser} = require('../controllers/tweetController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const multer = require("../middlewares/multer");
-const axios = require("axios");
-const fs = require("node:fs");
-const FormData = require("form-data");
-const Tweet = require('../models/Tweet');
-const User = require('../models/User');
 
+const router = (userList) => {
 
-const router = express.Router();
+    const {
+        createTweet,
+        getTweets,
+        getTweetById,
+        putTweetById,
+        delTweetById,
+        addUserEmotion,
+        likeTweet,
+        saveTweet,
+        reTweet,
+        mentionUser
+    } = require('../controllers/tweetController')(userList);
 
-router.post('/', authMiddleware, createTweet);
-router.get('/', authMiddleware, getTweets);
-router.get('/:id', authMiddleware, getTweetById);
-router.put('/:id', authMiddleware, putTweetById);
-router.delete('/:id', authMiddleware, delTweetById);
+    const route = express.Router();
 
-router.put('/like/:id', authMiddleware, likeTweet);
-router.put('/save/:id', authMiddleware, saveTweet);
-router.put('/retweet/:id', authMiddleware, reTweet);
-router.put('/mention/:id', authMiddleware, mentionUser);
+    route.post('/', authMiddleware, createTweet);
+    route.get('/', authMiddleware, getTweets);
+    route.get('/:id', authMiddleware, getTweetById);
+    route.put('/:id', authMiddleware, putTweetById);
+    route.delete('/:id', authMiddleware, delTweetById);
 
-router.post("/:id/emotion", authMiddleware, multer.single("image"), addUserEmotion)
+    route.put('/like/:id', authMiddleware, likeTweet);
+    route.put('/save/:id', authMiddleware, saveTweet);
+    route.put('/retweet/:id', authMiddleware, reTweet);
+    route.put('/mention/:id', authMiddleware, mentionUser);
+
+    route.post("/:id/emotion", authMiddleware, multer.single("image"), addUserEmotion)
+
+    return route
+}
 
 module.exports = router;
