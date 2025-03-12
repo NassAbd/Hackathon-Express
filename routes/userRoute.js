@@ -6,6 +6,7 @@ const router = (usersList) => {
 
     const {
         getUsers,
+        getCurrentUser,
         getUserById,
         updateUserById,
         getUserFollowers,
@@ -13,6 +14,7 @@ const router = (usersList) => {
     } = require("../controllers/userController")(usersList);
     const route = express.Router();
 
+    route.get("/current", authMiddleware, getCurrentUser);
     route.get("/", authMiddleware, getUsers);
     route.get('/:id', authMiddleware, getUserById);
     route.put('/update/:id', authMiddleware, updateUserById);

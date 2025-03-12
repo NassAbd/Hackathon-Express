@@ -97,7 +97,7 @@ const getTweets = async (req, res) => {
     const getAllTweets = async (req, res) => {
         try {
             // Récupération des tweets par ordre décroissant de création
-            const tweets = await Tweet.find().sort({ createdAt: -1 });
+            const tweets = await Tweet.find().sort({ createdAt: -1 }).populate("author");
             res.json(tweets);
         } catch (err) {
             console.error(err.message);

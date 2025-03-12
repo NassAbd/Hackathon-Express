@@ -6,6 +6,15 @@ const sendNotification = require("../sockets/sendNotification");
 
 const controller = (usersList) => {
 
+    const getCurrentUser = async (req, res) => {
+        try {
+            const users = await User.findById(req.user.id);
+            res.status(200).json(users);
+        } catch (error) {
+            res.status(500).json({message: 'Erreur serveur.', error});
+        }
+    };
+
 // Fonction pour récupérer tous les utilisateurs
     const getUsers = async (req, res) => {
         try {
@@ -130,11 +139,12 @@ const controller = (usersList) => {
     };
 
     return {
+        getCurrentUser,
         getUsers,
         getUserById,
         updateUserById,
         getUserFollowers,
-        followUserById
+        followUserById,
     }
 }
 
