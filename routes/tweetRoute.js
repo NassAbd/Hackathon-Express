@@ -7,6 +7,7 @@ const router = (userList) => {
     const {
         createTweet,
         getTweets,
+        getAllTweets,
         getPersonalizedFeed,
         getTweetById,
         putTweetById,
@@ -22,6 +23,7 @@ const router = (userList) => {
 
     route.post('/', authMiddleware, createTweet);
     route.get('/', authMiddleware, getTweets);
+    route.get('/all', authMiddleware, getAllTweets);
     route.get('/perso', authMiddleware, getPersonalizedFeed);
     route.get('/:id', authMiddleware, getTweetById);
     route.put('/:id', authMiddleware, putTweetById);

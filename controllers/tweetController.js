@@ -72,16 +72,27 @@ const controller = (usersList) => {
 // @desc Get all tweets
 // @access Private
 
-const getTweets = async (req, res) => {
-    try {
-      // Récupération des tweets par ordre décroissant de création
-      const tweets = await Tweet.find({ author: req.user.id }).sort({ createdAt: -1 });
-      res.json(tweets);
-    } catch (err) {
-      console.error(err.message);
-      res.status(500).send("Erreur serveur");
-    }
-  };
+    const getTweets = async (req, res) => {
+        try {
+            // Récupération des tweets par ordre décroissant de création
+            const tweets = await Tweet.find({ author: req.user.id }).sort({ createdAt: -1 });
+            res.json(tweets);
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send("Erreur serveur");
+        }
+    };
+
+    const getAllTweets = async (req, res) => {
+        try {
+            // Récupération des tweets par ordre décroissant de création
+            const tweets = await Tweet.find().sort({ createdAt: -1 });
+            res.json(tweets);
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send("Erreur serveur");
+        }
+    };
   
 const getPersonalizedFeed = async (req, res) => {
   try {
@@ -499,6 +510,7 @@ const getPersonalizedFeed = async (req, res) => {
     return {
         createTweet,
         getTweets,
+        getAllTweets,
         getPersonalizedFeed,
         getTweetById,
         putTweetById,
@@ -507,7 +519,7 @@ const getPersonalizedFeed = async (req, res) => {
         likeTweet,
         saveTweet,
         reTweet,
-        mentionUser
+        mentionUser,
     }
 }
 

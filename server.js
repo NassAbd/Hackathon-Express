@@ -25,6 +25,9 @@ app.use(express.json());
 app.use(cors());
 app.use(morgan("dev"));
 
+app.use('/static', express.static('uploads'))
+
+
 // Importation des routes
 app.use("/api/auth", require("./routes/authRoute"));
 app.use("/api/tweet", require("./routes/tweetRoute")(listUserConnected));
