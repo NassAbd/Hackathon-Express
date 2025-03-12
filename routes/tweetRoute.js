@@ -2,32 +2,50 @@ const express = require('express');
 const {createTweet, getTweets, getTweetById, putTweetById, delTweetById, addUserEmotion, likeTweet, saveTweet, reTweet, mentionUser, getTweetCountByDay, getTweetCountByMonth} = require('../controllers/tweetController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const multer = require("../middlewares/multer");
-const axios = require("axios");
-const fs = require("node:fs");
-const FormData = require("form-data");
-const Tweet = require('../models/Tweet');
-const User = require('../models/User');
+
+const router = (userList, server) => {
+
+    const {
+        createTweet,
+        getTweets,
+        getAllTweets,
+        getPersonalizedFeed,
+        getTweetById,
+        putTweetById,
+        delTweetById,
+        addUserEmotion,
+        likeTweet,
+        saveTweet,
+        reTweet,
+        mentionUser
+    } = require('../controllers/tweetController')(userList, server);
+
+    const route = express.Router();
+
+    route.post('/', authMiddleware, createTweet);
+    route.get('/', authMiddleware, getTweets);
+    route.get('/all', authMiddleware, getAllTweets);
+    route.get('/perso', authMiddleware, getPersonalizedFeed);
+    route.get('/:id', authMiddleware, getTweetById);
+    route.put('/:id', authMiddleware, putTweetById);
+    route.delete('/:id', authMiddleware, delTweetById);
+
+    route.put('/like/:id', authMiddleware, likeTweet);
+    route.put('/save/:id', authMiddleware, saveTweet);
+    route.put('/retweet/:id', authMiddleware, reTweet);
+    route.put('/mention/:id', authMiddleware, mentionUser);
+
+    route.post("/:id/emotion", authMiddleware, multer.single("image"), addUserEmotion)
+
+    //backoffice data
+    router.get('/getTweetCountByDay/:id/:range', getTweetCountByDay);
+    router.get('/getTweetCountByMonth/:id/:range', getTweetCountByMonth);
+
+    return route
+}
 
 
-const router = express.Router();
 
-router.post('/', authMiddleware, createTweet);
-router.get('/', authMiddleware, getTweets);
-router.get('/:id', authMiddleware, getTweetById);
-router.put('/:id', authMiddleware, putTweetById);
-router.delete('/:id', authMiddleware, delTweetById);
-
-router.put('/like/:id', authMiddleware, likeTweet);
-router.put('/save/:id', authMiddleware, saveTweet);
-router.put('/retweet/:id', authMiddleware, reTweet);
-router.put('/mention/:id', authMiddleware, mentionUser);
-
-router.post("/:id/emotion", authMiddleware, multer.single("image"), addUserEmotion)
-
-
-//backoffice data
-router.get('/getTweetCountByDay/:id/:range', getTweetCountByDay);
-router.get('/getTweetCountByMonth/:id/:range', getTweetCountByMonth);
     
 
 module.exports = router;
