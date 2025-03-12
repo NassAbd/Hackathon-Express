@@ -1,5 +1,4 @@
 const express = require('express');
-const {createTweet, getTweets, getTweetById, putTweetById, delTweetById, addUserEmotion, likeTweet, saveTweet, reTweet, mentionUser, getTweetCountByDay, getTweetCountByMonth} = require('../controllers/tweetController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const multer = require("../middlewares/multer");
 
@@ -17,7 +16,9 @@ const router = (userList, server) => {
         likeTweet,
         saveTweet,
         reTweet,
-        mentionUser
+        mentionUser,
+        getTweetCountByDay,
+        getTweetCountByMonth
     } = require('../controllers/tweetController')(userList, server);
 
     const route = express.Router();
@@ -38,8 +39,8 @@ const router = (userList, server) => {
     route.post("/:id/emotion", authMiddleware, multer.single("image"), addUserEmotion)
 
     //backoffice data
-    router.get('/getTweetCountByDay/:id/:range', getTweetCountByDay);
-    router.get('/getTweetCountByMonth/:id/:range', getTweetCountByMonth);
+    route.get('/getTweetCountByDay/:id/:range', getTweetCountByDay);
+    route.get('/getTweetCountByMonth/:id/:range', getTweetCountByMonth);
 
     return route
 }
