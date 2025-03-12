@@ -72,16 +72,27 @@ const controller = (usersList) => {
 // @desc Get all tweets
 // @access Private
 
-    const getTweets = async (req, res) => {
-        try {
-            // Récupération des tweets par ordre décroissant de création
-            const tweets = await Tweet.find({ author: req.user.id }).sort({ createdAt: -1 });
-            res.json(tweets);
-        } catch (err) {
-            console.error(err.message);
-            res.status(500).send("Erreur serveur");
-        }
-    };
+const getTweets = async (req, res) => {
+    try {
+        // Récupérer tous les tweets triés par date décroissante
+        let tweets = await Tweet.find().sort({ createdAt: -1 });
+
+        // Transformer les tweets pour inclure les informations de l'auteur
+        let tweetsWithAuthor = await Promise.all(tweets.map(async (tweet) => {
+            let user = await User.findById(tweet.author).select("username avatar");
+
+            return {
+                ...tweet.toObject(),  // Convertir le document Mongoose en objet JS
+                author: user // Remplace l'ID par les données de l'utilisateur
+            };
+        }));
+
+        res.json(tweetsWithAuthor);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Erreur serveur");
+    }
+};
 
     const getAllTweets = async (req, res) => {
         try {
