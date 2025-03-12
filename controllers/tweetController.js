@@ -7,7 +7,7 @@ const User = require("../models/User");
 const Notification = require('../models/Notification');
 const sendNotification = require("../sockets/sendNotification");
 
-const controller = (usersList) => {
+const controller = (usersList, server) => {
 
 // @route POST api/tweets
 // @desc Create a new tweet
@@ -61,6 +61,9 @@ const controller = (usersList) => {
                 }
             }
 
+            await tweet.populate("author")
+
+            server.emit("tweet_posted", tweet )
             res.status(201).json(tweet);
         } catch (err) {
             console.error(err.message);
@@ -302,7 +305,11 @@ const getPersonalizedFeed = async (req, res) => {
                 }
             }
 
-            await tweet.save();
+            const tweetSaves = await tweet.save();
+            await tweetSaves.populate("author")
+
+            server.emit("tweet_likeed", tweetSaves);
+
             res.status(200).json({likes: tweet.likes.length, liked: !isLiked});
         } catch (error) {
             console.error("❌ Erreur lors du like :", error);

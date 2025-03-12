@@ -2,7 +2,7 @@ const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
 const multer = require("../middlewares/multer");
 
-const router = (userList) => {
+const router = (userList, server) => {
 
     const {
         createTweet,
@@ -17,7 +17,7 @@ const router = (userList) => {
         saveTweet,
         reTweet,
         mentionUser
-    } = require('../controllers/tweetController')(userList);
+    } = require('../controllers/tweetController')(userList, server);
 
     const route = express.Router();
 

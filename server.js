@@ -30,7 +30,7 @@ app.use('/static', express.static('uploads'))
 
 // Importation des routes
 app.use("/api/auth", require("./routes/authRoute"));
-app.use("/api/tweet", require("./routes/tweetRoute")(listUserConnected));
+app.use("/api/tweet", require("./routes/tweetRoute")(listUserConnected, io));
 app.use("/api/notification", require("./routes/notificationRoute"));
 app.use("/api/users", require("./routes/userRoute")(listUserConnected));
 
