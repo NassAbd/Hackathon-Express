@@ -13,38 +13,45 @@ const controller = (usersList, server) => {
 // @desc Create a new tweet
 // @access Private
 
-    const createTweet = async (req, res) => {
-        try {
-            if (req.file)
-                console.log(req.file.filename);
-            const {content, media, hashtags, mentions, replyTo} = req.body;
+const createTweet = async (req, res) => {
+    try {
+        if (req.file) console.log(req.file.filename);
+        const { content, media, replyTo } = req.body;
 
-            // Vérification du contenu du tweet
-            if (!content || content.trim() === "") {
-                return res.status(400).json({error: "Le tweet ne peut pas être vide"});
-            }
+        // Vérification du contenu du tweet
+        if (!content || content.trim() === "") {
+            return res.status(400).json({ error: "Le tweet ne peut pas être vide" });
+        }
 
-            // Création du tweet
-            const newTweet = new Tweet({
-                author: req.user.id,
-                content,
-                media: req.file?.filename || "",
-                mediaType: req.file ? "image" : null,
-                hashtags: hashtags || [],
-                mentions: mentions || [],
-            });
+        // Extraction des mentions (@username) et des hashtags (#hashtag)
+        const mentionMatches = content.match(/@(\w+)/g) || [];
+        const hashtagMatches = content.match(/#(\w+)/g) || [];
 
-            // Sauvegarde du tweet
-            const tweet = await newTweet.save();
+        // Nettoyage des mentions et hashtags
+        const mentionUsernames = mentionMatches.map(m => m.slice(1)); // Supprime le '@'
+        const hashtags = hashtagMatches.map(h => h.slice(1)); // Supprime le '#'
 
-            // Si le tweet est une réponse, mise à jour du tweet parent
-            if (replyTo) {
-                const parentTweet = await Tweet.findById(replyTo);
-                if (!parentTweet) {
-                    return res.status(404).json({error: "Tweet parent non trouvé"});
-                }
+        // Vérification des utilisateurs mentionnés (ne garde que les existants)
+        const validUsers = await User.find({ username: { $in: mentionUsernames } }, "_id");
+        const validMentions = validUsers.map(user => user._id);
 
-                // Ajouter la réponse au tweet parent
+        // Création du tweet
+        const newTweet = new Tweet({
+            author: req.user.id,
+            content,
+            media: req.file?.filename || "",
+            mediaType: req.file ? "image" : null,
+            hashtags,
+            mentions: validMentions,
+        });
+
+        // Sauvegarde du tweet
+        const tweet = await newTweet.save();
+
+        // Si le tweet est une réponse, mise à jour du tweet parent
+        if (replyTo) {
+            const parentTweet = await Tweet.findById(replyTo);
+            if (parentTweet) {
                 parentTweet.replies.push(tweet._id);
                 await parentTweet.save();
 
@@ -53,26 +60,39 @@ const controller = (usersList, server) => {
 
                 // Création d'une notification pour l'auteur du tweet parent
                 if (parentTweet.author.toString() !== req.user.id) {
-                    const notification = new Notification({
+                    const replyNotification = new Notification({
                         user: parentTweet.author,  // L'auteur du tweet parent reçoit la notif
                         sender: req.user.id,       // L'utilisateur qui a répondu
                         type: "reply",
-                        tweet: tweet._id,          // Le tweet de réponse
+                        tweet: tweet._id,
                     });
-
-                    await notification.save();
+                    await replyNotification.save();
                 }
             }
-
-            await tweet.populate("author")
-
-            server.emit("tweet_posted", tweet)
-            res.status(201).json(tweet);
-        } catch (err) {
-            console.error(err.message);
-            res.status(500).send("Erreur serveur");
         }
-    };
+
+        // Création des notifications pour chaque utilisateur mentionné
+        for (const mentionedUserId of validMentions) {
+            if (mentionedUserId.toString() !== req.user.id) { // Évite l'auto-notification
+                const mentionNotification = new Notification({
+                    user: mentionedUserId,
+                    sender: req.user.id,
+                    type: "mention",
+                    tweet: tweet._id,
+                });
+                await mentionNotification.save();
+            }
+        }
+
+        await tweet.populate("author");
+
+        server.emit("tweet_posted", tweet);
+        res.status(201).json(tweet);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Erreur serveur");
+    }
+};
 
 // @route GET api/tweets
 // @desc Get all tweets
