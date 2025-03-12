@@ -23,7 +23,7 @@ const router = (userList, server) => {
 
     const route = express.Router();
 
-    route.post('/', authMiddleware, createTweet);
+    route.post('/', authMiddleware, multer.single("file"), createTweet);
     route.get('/', authMiddleware, getTweets);
     route.get('/all', authMiddleware, getAllTweets);
     route.get('/perso', authMiddleware, getPersonalizedFeed);
