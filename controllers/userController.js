@@ -30,14 +30,14 @@ const controller = (usersList) => {
     // Fonction pour récupérer tous les utilisateurs
     const getUsersPlus = async (req, res) => {
       try {
-        // const adminId = req.params.id; // Récupération de l'ID transmis
+        const adminId = req.params.userId; // Récupération de l'ID transmis
     
-        // // Vérifier que l'ID transmis appartient bien à un admin
-        // const adminUser = await User.findById(adminId);
+        // Vérifier que l'ID transmis appartient bien à un admin
+        const adminUser = await User.findById(adminId);
     
-        // if (!adminUser || !adminUser.admin) {
-        //   return res.status(403).json({ message: "Accès refusé. Seul un administrateur peut voir cette liste." });
-        // }
+        if (!adminUser || !adminUser.admin) {
+          return res.status(403).json({ message: "Accès refusé. Seul un administrateur peut voir cette liste." });
+        }
     
         // Si l'utilisateur est bien admin, récupérer les utilisateurs
         const users = await User.find().select("username email bio followers admin createdAt").sort({createdAt: -1});
@@ -168,6 +168,15 @@ const controller = (usersList) => {
     // Fonction pour récupérer le nombre d'utilisateurs créés dans le mois actuel ou précédent
     const getListUserInMonth = async (req, res) => {
       try {
+        const adminId = req.params.userId; // Récupération de l'ID transmis
+    
+        // Vérifier que l'ID transmis appartient bien à un admin
+        const adminUser = await User.findById(adminId);
+    
+        if (!adminUser || !adminUser.admin) {
+          return res.status(403).json({ message: "Accès refusé. Seul un administrateur peut voir cette liste." });
+        }
+
         const monthOffset = parseInt(req.params.id, 10);
         const range = parseInt(req.params.range, 10);
 
@@ -224,6 +233,16 @@ const controller = (usersList) => {
 
     const getListUserByDay = async (req, res) => {
       try {
+
+        const adminId = req.params.userId; // Récupération de l'ID transmis
+    
+        // Vérifier que l'ID transmis appartient bien à un admin
+        const adminUser = await User.findById(adminId);
+    
+        if (!adminUser || !adminUser.admin) {
+          return res.status(403).json({ message: "Accès refusé. Seul un administrateur peut voir cette liste." });
+        }
+
         const dayOffset = parseInt(req.params.id, 10);
         const range = parseInt(req.params.range, 10);
 
@@ -285,12 +304,22 @@ const controller = (usersList) => {
 
     const delUserByIdAdmin = async (req, res) => {
       try {
+
+          const adminId = req.params.userId; // Récupération de l'ID transmis
+      
+          // Vérifier que l'ID transmis appartient bien à un admin
+          const adminUser = await User.findById(adminId);
+      
+          if (!adminUser || !adminUser.admin) {
+            return res.status(403).json({ message: "Accès refusé. Seul un administrateur peut voir cette liste." });
+          }
           // Vérifier si l'utilisateur existe
           const user = await User.findById(req.params.id);
   
           if (!user) {
               return res.status(404).json({ message: "Utilisateur non trouvé" });
           }
+          
   
           // Vérifier si l'utilisateur qui fait la requête est un administrateur
           // const adminUser = await User.findById(req.user.id);

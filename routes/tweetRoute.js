@@ -30,7 +30,7 @@ const router = (userList, server) => {
 
     route.post('/', authMiddleware, multer.single("file"), createTweet);
     route.get('/', authMiddleware, getTweets);
-    route.get('/tweetsPlus', getAllTweetsPlus);
+    route.get('/tweetsPlus/:userId',authMiddleware , getAllTweetsPlus);
     route.get('/all', authMiddleware, getAllTweets);
     route.get('/perso', authMiddleware, getPersonalizedFeed);
     route.get('/trends', authMiddleware, getTrends);
@@ -39,7 +39,7 @@ const router = (userList, server) => {
     route.get('/:id', authMiddleware, getTweetById);
     route.put('/:id', authMiddleware, putTweetById);
     route.delete('/:id', authMiddleware, delTweetById);
-    route.delete('/:id/admin', delTweetByIdAdmin);
+    route.delete('/:id/admin/:userId',authMiddleware , delTweetByIdAdmin);
 
     route.put('/like/:id', authMiddleware, likeTweet);
     route.put('/save/:id', authMiddleware, saveTweet);
@@ -49,8 +49,8 @@ const router = (userList, server) => {
     route.post("/:id/emotion", authMiddleware, multer.single("image"), addUserEmotion)
 
     //backoffice data
-    route.get('/getTweetCountByDay/:id/:range', getTweetCountByDay);
-    route.get('/getTweetCountByMonth/:id/:range', getTweetCountByMonth);
+    route.get('/getTweetCountByDay/:id/:range/:userId',authMiddleware , getTweetCountByDay);
+    route.get('/getTweetCountByMonth/:id/:range/:userId',authMiddleware , getTweetCountByMonth);
     
 
     return route
