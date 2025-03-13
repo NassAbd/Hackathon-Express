@@ -12,6 +12,7 @@ const router = (userList, server) => {
         getTweetById,
         putTweetById,
         delTweetById,
+        delTweetByIdAdmin,
         addUserEmotion,
         likeTweet,
         saveTweet,
@@ -30,6 +31,7 @@ const router = (userList, server) => {
     route.get('/:id', authMiddleware, getTweetById);
     route.put('/:id', authMiddleware, putTweetById);
     route.delete('/:id', authMiddleware, delTweetById);
+    route.delete('/:id/admin', authMiddleware, delTweetByIdAdmin);
 
     route.put('/like/:id', authMiddleware, likeTweet);
     route.put('/save/:id', authMiddleware, saveTweet);

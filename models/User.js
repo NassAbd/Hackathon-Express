@@ -16,12 +16,24 @@ const UserSchema = new mongoose.Schema({
       mention: { type: Boolean, default: true },
       follow: { type: Boolean, default: true }
     },
+    admin: { type: Boolean, default: false },
     createdAt: {type: Date, default: Date.now},
     trends: {
         type: Map,
         of: Number,
         default: {}
     }
+});
+
+// Avant de définir un utilisateur comme admin, vérifier qu'il n'en existe pas déjà un
+UserSchema.pre("save", async function (next) {
+    if (this.admin) {
+        const existingAdmin = await this.constructor.findOne({ admin: true });
+        if (existingAdmin && existingAdmin._id.toString() !== this._id.toString()) {
+            throw new Error("Il ne peut y avoir qu'un seul administrateur.");
+        }
+    }
+    next();
 });
 
 module.exports = mongoose.model("User", UserSchema);
