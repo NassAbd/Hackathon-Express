@@ -345,11 +345,9 @@ const createTweet = async (req, res) => {
                     });
                     await notification.save();
 
-                    await sendNotification(usersList, tweet.author.id, {
-                        user: userId,
-                        tweet: tweet.id,
-                        message: "A liker votre post"
-                    })
+                    await notification.populate("sender")
+
+                    await sendNotification(usersList, tweet.author._id.toString(), notification)
                 }
             }
 

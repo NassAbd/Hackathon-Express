@@ -6,12 +6,8 @@ exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    console.log("Mot de passe reçu :", password);
-
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-
-    console.log("Mot de passe hashé :", hashedPassword);
 
     const newUser = new User({ username, email, password: hashedPassword });
     await newUser.save();
@@ -19,17 +15,13 @@ exports.register = async (req, res) => {
     res.status(201).json({ message: "Utilisateur créé avec succès !" });
   } catch (error) {
     console.error("Erreur serveur :", error);
-    res.status(500).json({ error: "Erreur serveur" });
+    res.status(500).json({ error: `Erreur serveur ${error}` });
   }
 };
-
 
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log("Email reçu :", email);
-    console.log("Mot de passe reçu :", password);
-
     const user = await User.findOne({ email });
 
     if (!user) {
