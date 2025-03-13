@@ -697,6 +697,50 @@ const controller = (usersList, server) => {
         }
     };
 
+
+    const getTrends = async (req, res) => {
+        try {
+            const oneDayAgo = new Date();
+            oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+            // Récupération des tweets par ordre décroissant de création
+            const tweets = await Tweet.find({createdAt: {$gte: oneDayAgo}});
+
+            console.log(tweets)
+            const trends = tweets.reduce((acc, value) => {
+                for (const v of value.hashtags) {
+                    if(!acc[v])
+                        acc[v] = 0
+                    acc[v] +=1;
+                }
+                return acc
+            }, {})
+            const data = Object.entries(trends).sort((a, b) => b[1] - a[1]).map(x => x[0])
+            let returnData = data;
+            if(returnData.length > 5) {
+                returnData = returnData.slice(0, 5);
+            }
+
+
+
+            res.json(returnData);
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send("Erreur serveur");
+        }
+    }
+
+    const getTweetByTrends= async(req, res) => {
+        try{
+            const trends = req.params.id;
+
+            const tweets = await Tweet.find({hashtags: {$gte: trends}}).sort({createdAt: -1});
+
+            res.status(200).json(tweets);
+        }catch(e){
+            console.error(e)
+        }
+    }
+
     return {
         createTweet,
         getTweets,
@@ -713,8 +757,9 @@ const controller = (usersList, server) => {
         reTweet,
         mentionUser,
         getTweetCountByMonth,
-        getTweetCountByDay
-
+        getTweetCountByDay,
+        getTrends,
+        getTweetByTrends,
     }
 }
 

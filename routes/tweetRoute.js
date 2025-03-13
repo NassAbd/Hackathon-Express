@@ -20,7 +20,9 @@ const router = (userList, server) => {
         reTweet,
         mentionUser,
         getTweetCountByDay,
-        getTweetCountByMonth
+        getTweetCountByMonth,
+        getTrends,
+        getTweetByTrends
     } = require('../controllers/tweetController')(userList, server);
 
     const route = express.Router();
@@ -29,6 +31,8 @@ const router = (userList, server) => {
     route.get('/', authMiddleware, getTweets);
     route.get('/all', authMiddleware, getAllTweets);
     route.get('/perso', authMiddleware, getPersonalizedFeed);
+    route.get('/trends', authMiddleware, getTrends);
+    route.get('/trends/:id', authMiddleware, getTweetByTrends);
     route.get('/user/:id', authMiddleware, getTweetsByUser);
     route.get('/:id', authMiddleware, getTweetById);
     route.put('/:id', authMiddleware, putTweetById);
