@@ -101,19 +101,8 @@ const createTweet = async (req, res) => {
     const getTweets = async (req, res) => {
         try {
             // Récupérer tous les tweets triés par date décroissante
-            let tweets = await Tweet.find().sort({createdAt: -1});
-
-            // Transformer les tweets pour inclure les informations de l'auteur
-            let tweetsWithAuthor = await Promise.all(tweets.map(async (tweet) => {
-                let user = await User.findById(tweet.author).select("username avatar");
-
-                return {
-                    ...tweet.toObject(),  // Convertir le document Mongoose en objet JS
-                    author: user // Remplace l'ID par les données de l'utilisateur
-                };
-            }));
-
-            res.json(tweetsWithAuthor);
+            let tweets = await Tweet.find().sort({createdAt: -1}).populate("author");
+            res.json(tweets);
         } catch (err) {
             console.error(err.message);
             res.status(500).send("Erreur serveur");
@@ -187,6 +176,18 @@ const createTweet = async (req, res) => {
             res.status(500).json({message: "Erreur serveur.", error});
         }
     };
+
+    const getTweetsByUser = async (req, res) => {
+        try {
+            const authorId = req.params.id
+            // Récupérer tous les tweets triés par date décroissante
+            let tweets = await Tweet.find({author: authorId}).sort({createdAt: -1}).populate("author");
+            res.json(tweets);
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send("Erreur serveur");
+        }
+    }
 
 
 // @route GET api/tweets/:id
@@ -694,6 +695,7 @@ const createTweet = async (req, res) => {
         getTweets,
         getAllTweets,
         getPersonalizedFeed,
+        getTweetsByUser,
         getTweetById,
         putTweetById,
         delTweetById,

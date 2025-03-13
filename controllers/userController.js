@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const router = require("../routes/authRoute");
 const sendNotification = require("../sockets/sendNotification");
+const Tweet = require("../models/Tweet");
 
 
 const controller = (usersList) => {
@@ -32,7 +33,10 @@ const controller = (usersList) => {
             if (!user) {
                 return res.status(404).json({message: 'Utilisateur non trouvé.'});
             }
-            res.status(200).json(user);
+            const tweets = await Tweet.find({author: req.params.id}).sort({createdAt: -1}).populate("author");
+
+
+            res.status(200).json({user,tweets});
         } catch (error) {
             res.status(500).json({message: 'Erreur serveur.', error});
         }
