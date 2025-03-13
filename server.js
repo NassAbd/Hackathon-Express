@@ -37,5 +37,5 @@ app.use("/api/users", require("./routes/userRoute")(listUserConnected));
 // WebSocket Notifications
 //require("./sockets/notificationSocket")(io); TODO:
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5500;
 server.listen(PORT, () => console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`));
