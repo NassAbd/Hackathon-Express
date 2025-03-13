@@ -15,6 +15,10 @@ const TweetSchema = new mongoose.Schema({
     type: String, // URL d'une image/vidéo
     default: "" 
   },
+  mediaType: {
+    type: String,
+    default: "none"
+  },
   likes: [{ 
     type: mongoose.Schema.Types.ObjectId, 
     ref: "User" 
