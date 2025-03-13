@@ -13,86 +13,86 @@ const controller = (usersList, server) => {
 // @desc Create a new tweet
 // @access Private
 
-const createTweet = async (req, res) => {
-    try {
-        if (req.file) console.log(req.file.filename);
-        const { content, media, replyTo } = req.body;
+    const createTweet = async (req, res) => {
+        try {
+            if (req.file) console.log(req.file.filename);
+            const {content, media, replyTo} = req.body;
 
-        // Vérification du contenu du tweet
-        if (!content || content.trim() === "") {
-            return res.status(400).json({ error: "Le tweet ne peut pas être vide" });
-        }
+            // Vérification du contenu du tweet
+            if (!content || content.trim() === "") {
+                return res.status(400).json({error: "Le tweet ne peut pas être vide"});
+            }
 
-        // Extraction des mentions (@username) et des hashtags (#hashtag)
-        const mentionMatches = content.match(/@(\w+)/g) || [];
-        const hashtagMatches = content.match(/#(\w+)/g) || [];
+            // Extraction des mentions (@username) et des hashtags (#hashtag)
+            const mentionMatches = content.match(/@(\w+)/g) || [];
+            const hashtagMatches = content.match(/#(\w+)/g) || [];
 
-        // Nettoyage des mentions et hashtags
-        const mentionUsernames = mentionMatches.map(m => m.slice(1)); // Supprime le '@'
-        const hashtags = hashtagMatches.map(h => h.slice(1)); // Supprime le '#'
+            // Nettoyage des mentions et hashtags
+            const mentionUsernames = mentionMatches.map(m => m.slice(1)); // Supprime le '@'
+            const hashtags = hashtagMatches.map(h => h.slice(1)); // Supprime le '#'
 
-        // Vérification des utilisateurs mentionnés (ne garde que les existants)
-        const validUsers = await User.find({ username: { $in: mentionUsernames } }, "_id");
-        const validMentions = validUsers.map(user => user._id);
+            // Vérification des utilisateurs mentionnés (ne garde que les existants)
+            const validUsers = await User.find({username: {$in: mentionUsernames}}, "_id");
+            const validMentions = validUsers.map(user => user._id);
 
-        // Création du tweet
-        const newTweet = new Tweet({
-            author: req.user.id,
-            content,
-            media: req.file?.filename || "",
-            mediaType: req.file ? "image" : null,
-            hashtags,
-            mentions: validMentions,
-        });
+            // Création du tweet
+            const newTweet = new Tweet({
+                author: req.user.id,
+                content,
+                media: req.file?.filename || "",
+                mediaType: req.file ? "image" : null,
+                hashtags,
+                mentions: validMentions,
+            });
 
-        // Sauvegarde du tweet
-        const tweet = await newTweet.save();
+            // Sauvegarde du tweet
+            const tweet = await newTweet.save();
 
-        // Si le tweet est une réponse, mise à jour du tweet parent
-        if (replyTo) {
-            const parentTweet = await Tweet.findById(replyTo);
-            if (parentTweet) {
-                parentTweet.replies.push(tweet._id);
-                await parentTweet.save();
+            // Si le tweet est une réponse, mise à jour du tweet parent
+            if (replyTo) {
+                const parentTweet = await Tweet.findById(replyTo);
+                if (parentTweet) {
+                    parentTweet.replies.push(tweet._id);
+                    await parentTweet.save();
 
-                tweet.replyTo = parentTweet._id;
-                await tweet.save();
+                    tweet.replyTo = parentTweet._id;
+                    await tweet.save();
 
-                // Création d'une notification pour l'auteur du tweet parent
-                if (parentTweet.author.toString() !== req.user.id) {
-                    const replyNotification = new Notification({
-                        user: parentTweet.author,  // L'auteur du tweet parent reçoit la notif
-                        sender: req.user.id,       // L'utilisateur qui a répondu
-                        type: "reply",
-                        tweet: tweet._id,
-                    });
-                    await replyNotification.save();
+                    // Création d'une notification pour l'auteur du tweet parent
+                    if (parentTweet.author.toString() !== req.user.id) {
+                        const replyNotification = new Notification({
+                            user: parentTweet.author,  // L'auteur du tweet parent reçoit la notif
+                            sender: req.user.id,       // L'utilisateur qui a répondu
+                            type: "reply",
+                            tweet: tweet._id,
+                        });
+                        await replyNotification.save();
+                    }
                 }
             }
-        }
 
-        // Création des notifications pour chaque utilisateur mentionné
-        for (const mentionedUserId of validMentions) {
-            if (mentionedUserId.toString() !== req.user.id) { // Évite l'auto-notification
-                const mentionNotification = new Notification({
-                    user: mentionedUserId,
-                    sender: req.user.id,
-                    type: "mention",
-                    tweet: tweet._id,
-                });
-                await mentionNotification.save();
+            // Création des notifications pour chaque utilisateur mentionné
+            for (const mentionedUserId of validMentions) {
+                if (mentionedUserId.toString() !== req.user.id) { // Évite l'auto-notification
+                    const mentionNotification = new Notification({
+                        user: mentionedUserId,
+                        sender: req.user.id,
+                        type: "mention",
+                        tweet: tweet._id,
+                    });
+                    await mentionNotification.save();
+                }
             }
+
+            await tweet.populate("author");
+
+            server.emit("tweet_posted", tweet);
+            res.status(201).json(tweet);
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send("Erreur serveur");
         }
-
-        await tweet.populate("author");
-
-        server.emit("tweet_posted", tweet);
-        res.status(201).json(tweet);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send("Erreur serveur");
-    }
-};
+    };
 
 // @route GET api/tweets
 // @desc Get all tweets
@@ -101,19 +101,8 @@ const createTweet = async (req, res) => {
     const getTweets = async (req, res) => {
         try {
             // Récupérer tous les tweets triés par date décroissante
-            let tweets = await Tweet.find().sort({createdAt: -1});
-
-            // Transformer les tweets pour inclure les informations de l'auteur
-            let tweetsWithAuthor = await Promise.all(tweets.map(async (tweet) => {
-                let user = await User.findById(tweet.author).select("username avatar");
-
-                return {
-                    ...tweet.toObject(),  // Convertir le document Mongoose en objet JS
-                    author: user // Remplace l'ID par les données de l'utilisateur
-                };
-            }));
-
-            res.json(tweetsWithAuthor);
+            let tweets = await Tweet.find().sort({createdAt: -1}).populate("author");
+            res.json(tweets);
         } catch (err) {
             console.error(err.message);
             res.status(500).send("Erreur serveur");
@@ -199,6 +188,18 @@ const createTweet = async (req, res) => {
             res.status(500).json({message: "Erreur serveur.", error});
         }
     };
+
+    const getTweetsByUser = async (req, res) => {
+        try {
+            const authorId = req.params.id
+            // Récupérer tous les tweets triés par date décroissante
+            let tweets = await Tweet.find({author: authorId}).sort({createdAt: -1}).populate("author");
+            res.json(tweets);
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send("Erreur serveur");
+        }
+    }
 
 
 // @route GET api/tweets/:id
@@ -298,9 +299,9 @@ const createTweet = async (req, res) => {
         try {
             // Vérifier si le tweet existe
             const tweet = await Tweet.findById(req.params.id);
-    
+
             if (!tweet) {
-                return res.status(404).json({ message: "Tweet non trouvé" });
+                return res.status(404).json({message: "Tweet non trouvé"});
             }
             // if (!adminUser || !adminUser.admin) {
           //   return res.status(403).json({ message: "Accès refusé. Seul un administrateur peut voir cette liste." });
@@ -308,16 +309,16 @@ const createTweet = async (req, res) => {
     
             // Supprimer le tweet
             await Tweet.findByIdAndDelete(req.params.id);
-    
-            res.json({ message: "Tweet supprimé avec succès" });
+
+            res.json({message: "Tweet supprimé avec succès"});
         } catch (err) {
             console.error(err.message);
-    
+
             // Gérer l'erreur si l'ID est invalide
             if (err.name === "CastError") {
-                return res.status(400).json({ message: "ID invalide" });
+                return res.status(400).json({message: "ID invalide"});
             }
-    
+
             res.status(500).send("Erreur serveur");
         }
     };
@@ -369,7 +370,7 @@ const createTweet = async (req, res) => {
             const tweetSaves = await tweet.save();
             await tweetSaves.populate("author")
 
-            server.emit("tweet_likeed", tweetSaves);
+            server.emit("update_tweet", tweetSaves);
 
             res.status(200).json({likes: tweet.likes.length, liked: !isLiked});
         } catch (error) {
@@ -399,7 +400,12 @@ const createTweet = async (req, res) => {
                 tweet.saved.push(userId);
             }
 
-            await tweet.save();
+
+            const tweetSaves = await tweet.save();
+
+            await tweetSaves.populate("author")
+
+            server.emit("update_tweet", tweetSaves);
             res.status(200).json({savedCount: tweet.saved.length, saved: !isSaved});
         } catch (error) {
             console.error("❌ Erreur lors de la sauvegarde du tweet :", error);
@@ -452,7 +458,12 @@ const createTweet = async (req, res) => {
                 }
             }
 
-            await tweet.save();
+            const tweetSaves = await tweet.save();
+
+            await tweetSaves.populate("author")
+
+            server.emit("update_tweet", tweetSaves);
+
             res.status(200).json({retweetsCount: tweet.retweets.length, retweeted: !isRetweeted});
         } catch (error) {
             console.error("❌ Erreur lors du retweet :", error);
@@ -541,7 +552,6 @@ const createTweet = async (req, res) => {
             const formData = new FormData();
             formData.append("file", fs.createReadStream(req.file.path));
 
-            console.log("Send request")
             const response = await axios.post("http://localhost:5000/upload", formData, {
                 headers: {...formData.getHeaders()},
             });
@@ -587,128 +597,171 @@ const createTweet = async (req, res) => {
     }
 
     const getTweetCountByDay = async (req, res) => {
-      try {
-        const dayOffset = parseInt(req.params.id, 10);
-        const range = parseInt(req.params.range, 10);
-    
-        if (isNaN(dayOffset) || isNaN(range) || dayOffset < 0 || range <= 0) {
-          return res.status(400).json({ message: "Paramètres invalides." });
+        try {
+            const dayOffset = parseInt(req.params.id, 10);
+            const range = parseInt(req.params.range, 10);
+
+            if (isNaN(dayOffset) || isNaN(range) || dayOffset < 0 || range <= 0) {
+                return res.status(400).json({message: "Paramètres invalides."});
+            }
+
+            const now = new Date();
+            const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+
+            let daysData = [];
+
+            for (let i = 0; i < range; i++) {
+                const targetDate = new Date();
+                targetDate.setDate(now.getDate() - (dayOffset + i));
+
+                const dayNumber = targetDate.getDate();
+                const dayName = targetDate.toLocaleDateString("fr-FR", {weekday: 'long'});
+                const month = monthNames[targetDate.getMonth()];
+                const year = targetDate.getFullYear();
+
+                daysData.push({
+                    date: {dayNumber, dayName, month, year},
+                    tweetCount: 0,
+                    evolutionPercentage: null,
+                });
+            }
+
+            // **Première boucle : récupérer les tweets pour chaque jour**
+            for (const day of daysData) {
+                const startDate = new Date(day.date.year, monthNames.indexOf(day.date.month), day.date.dayNumber, 0, 0, 0, 0);
+                const endDate = new Date(day.date.year, monthNames.indexOf(day.date.month), day.date.dayNumber, 23, 59, 59, 999);
+
+                day.tweetCount = await Tweet.countDocuments({
+                    createdAt: {$gte: startDate, $lte: endDate},
+                });
+            }
+
+            // **Deuxième boucle : calculer l'évolution**
+            for (let i = 0; i < daysData.length - 1; i++) {
+                const currentDay = daysData[i];
+                const previousDay = daysData[i + 1];
+
+                if (previousDay.tweetCount > 0) {
+                    currentDay.evolutionPercentage = ((currentDay.tweetCount - previousDay.tweetCount) / previousDay.tweetCount * 100).toFixed(2);
+                } else {
+                    currentDay.evolutionPercentage = null;
+                }
+            }
+
+            res.status(200).json({dayOffset, range, days: daysData});
+        } catch (error) {
+            res.status(500).json({message: "Erreur serveur.", error});
         }
-    
-        const now = new Date();
-        const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
-    
-        let daysData = [];
-    
-        for (let i = 0; i < range; i++) {
-          const targetDate = new Date();
-          targetDate.setDate(now.getDate() - (dayOffset + i));
-    
-          const dayNumber = targetDate.getDate();
-          const dayName = targetDate.toLocaleDateString("fr-FR", { weekday: 'long' });
-          const month = monthNames[targetDate.getMonth()];
-          const year = targetDate.getFullYear();
-    
-          daysData.push({
-            date: { dayNumber, dayName, month, year },
-            tweetCount: 0,
-            evolutionPercentage: null,
-          });
-        }
-    
-        // **Première boucle : récupérer les tweets pour chaque jour**
-        for (const day of daysData) {
-          const startDate = new Date(day.date.year, monthNames.indexOf(day.date.month), day.date.dayNumber, 0, 0, 0, 0);
-          const endDate = new Date(day.date.year, monthNames.indexOf(day.date.month), day.date.dayNumber, 23, 59, 59, 999);
-    
-          day.tweetCount = await Tweet.countDocuments({
-            createdAt: { $gte: startDate, $lte: endDate },
-          });
-        }
-    
-        // **Deuxième boucle : calculer l'évolution**
-        for (let i = 0; i < daysData.length - 1; i++) {
-          const currentDay = daysData[i];
-          const previousDay = daysData[i + 1];
-    
-          if (previousDay.tweetCount > 0) {
-            currentDay.evolutionPercentage = ((currentDay.tweetCount - previousDay.tweetCount) / previousDay.tweetCount * 100).toFixed(2);
-          } else {
-            currentDay.evolutionPercentage = null;
-          }
-        }
-    
-        res.status(200).json({ dayOffset, range, days: daysData });
-      } catch (error) {
-        res.status(500).json({ message: "Erreur serveur.", error });
-      }
     };
-    
-    
-    
-    
+
+
     const getTweetCountByMonth = async (req, res) => {
-      try {
-        const monthOffset = parseInt(req.params.id, 10);
-        const range = parseInt(req.params.range, 10);
-    
-        if (isNaN(monthOffset) || isNaN(range) || monthOffset < 0 || range <= 0) {
-          return res.status(400).json({ message: "Paramètres invalides." });
+        try {
+            const monthOffset = parseInt(req.params.id, 10);
+            const range = parseInt(req.params.range, 10);
+
+            if (isNaN(monthOffset) || isNaN(range) || monthOffset < 0 || range <= 0) {
+                return res.status(400).json({message: "Paramètres invalides."});
+            }
+
+            const now = new Date();
+            const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+
+            let monthsData = [];
+
+            for (let i = 0; i < range; i++) {
+                const targetDate = new Date();
+                targetDate.setMonth(targetDate.getMonth() - (monthOffset + i));
+
+                const monthIndex = targetDate.getMonth();
+                const year = targetDate.getFullYear();
+
+                monthsData.push({
+                    month: monthNames[monthIndex],
+                    year: year,
+                    tweetCount: 0,
+                    evolutionPercentage: null, // Initialisé à null
+                });
+            }
+
+            // **Première boucle : récupérer les tweets pour chaque mois**
+            for (const month of monthsData) {
+                const startDate = new Date(month.year, monthNames.indexOf(month.month), 1);
+                const endDate = new Date(month.year, monthNames.indexOf(month.month) + 1, 0, 23, 59, 59);
+
+                month.tweetCount = await Tweet.countDocuments({
+                    createdAt: {$gte: startDate, $lte: endDate},
+                });
+            }
+
+            // **Deuxième boucle : calculer l'évolution**
+            for (let i = 0; i < monthsData.length - 1; i++) {
+                const currentMonth = monthsData[i];
+                const previousMonth = monthsData[i + 1];
+
+                if (previousMonth.tweetCount > 0) {
+                    currentMonth.evolutionPercentage = ((currentMonth.tweetCount - previousMonth.tweetCount) / previousMonth.tweetCount * 100).toFixed(2);
+                } else {
+                    currentMonth.evolutionPercentage = null; // Aucun calcul possible
+                }
+            }
+
+            res.status(200).json({monthOffset, range, months: monthsData});
+        } catch (error) {
+            res.status(500).json({message: "Erreur serveur.", error});
         }
-    
-        const now = new Date();
-        const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
-    
-        let monthsData = [];
-    
-        for (let i = 0; i < range; i++) {
-          const targetDate = new Date();
-          targetDate.setMonth(targetDate.getMonth() - (monthOffset + i));
-    
-          const monthIndex = targetDate.getMonth();
-          const year = targetDate.getFullYear();
-    
-          monthsData.push({
-            month: monthNames[monthIndex],
-            year: year,
-            tweetCount: 0,
-            evolutionPercentage: null, // Initialisé à null
-          });
-        }
-    
-        // **Première boucle : récupérer les tweets pour chaque mois**
-        for (const month of monthsData) {
-          const startDate = new Date(month.year, monthNames.indexOf(month.month), 1);
-          const endDate = new Date(month.year, monthNames.indexOf(month.month) + 1, 0, 23, 59, 59);
-    
-          month.tweetCount = await Tweet.countDocuments({
-            createdAt: { $gte: startDate, $lte: endDate },
-          });
-        }
-    
-        // **Deuxième boucle : calculer l'évolution**
-        for (let i = 0; i < monthsData.length - 1; i++) {
-          const currentMonth = monthsData[i];
-          const previousMonth = monthsData[i + 1];
-    
-          if (previousMonth.tweetCount > 0) {
-            currentMonth.evolutionPercentage = ((currentMonth.tweetCount - previousMonth.tweetCount) / previousMonth.tweetCount * 100).toFixed(2);
-          } else {
-            currentMonth.evolutionPercentage = null; // Aucun calcul possible
-          }
-        }
-    
-        res.status(200).json({ monthOffset, range, months: monthsData });
-      } catch (error) {
-        res.status(500).json({ message: "Erreur serveur.", error });
-      }
     };
+
+
+    const getTrends = async (req, res) => {
+        try {
+            const oneDayAgo = new Date();
+            oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+            // Récupération des tweets par ordre décroissant de création
+            const tweets = await Tweet.find({createdAt: {$gte: oneDayAgo}});
+
+            console.log(tweets)
+            const trends = tweets.reduce((acc, value) => {
+                for (const v of value.hashtags) {
+                    if(!acc[v])
+                        acc[v] = 0
+                    acc[v] +=1;
+                }
+                return acc
+            }, {})
+            const data = Object.entries(trends).sort((a, b) => b[1] - a[1]).map(x => x[0])
+            let returnData = data;
+            if(returnData.length > 5) {
+                returnData = returnData.slice(0, 5);
+            }
+
+
+
+            res.json(returnData);
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send("Erreur serveur");
+        }
+    }
+
+    const getTweetByTrends= async(req, res) => {
+        try{
+            const trends = req.params.id;
+
+            const tweets = await Tweet.find({hashtags: {$gte: trends}}).sort({createdAt: -1});
+
+            res.status(200).json(tweets);
+        }catch(e){
+            console.error(e)
+        }
+    }
 
     return {
         createTweet,
         getTweets,
         getAllTweets,
         getPersonalizedFeed,
+        getTweetsByUser,
         getTweetById,
         putTweetById,
         delTweetById,
@@ -720,8 +773,9 @@ const createTweet = async (req, res) => {
         mentionUser,
         getTweetCountByMonth,
         getTweetCountByDay,
-        getAllTweetsPlus
-
+        getAllTweetsPlus,
+        getTrends,
+        getTweetByTrends
     }
 }
 
