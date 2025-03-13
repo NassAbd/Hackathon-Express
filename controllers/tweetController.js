@@ -282,6 +282,31 @@ const createTweet = async (req, res) => {
         }
     };
 
+    const delTweetByIdAdmin = async (req, res) => {
+        try {
+            // Vérifier si le tweet existe
+            const tweet = await Tweet.findById(req.params.id);
+    
+            if (!tweet) {
+                return res.status(404).json({ message: "Tweet non trouvé" });
+            }
+    
+            // Supprimer le tweet
+            await Tweet.findByIdAndDelete(req.params.id);
+    
+            res.json({ message: "Tweet supprimé avec succès" });
+        } catch (err) {
+            console.error(err.message);
+    
+            // Gérer l'erreur si l'ID est invalide
+            if (err.name === "CastError") {
+                return res.status(400).json({ message: "ID invalide" });
+            }
+    
+            res.status(500).send("Erreur serveur");
+        }
+    };
+
     const likeTweet = async (req, res) => {
         try {
             const userId = req.user.id;
@@ -674,6 +699,7 @@ const createTweet = async (req, res) => {
         getTweetById,
         putTweetById,
         delTweetById,
+        delTweetByIdAdmin,
         addUserEmotion,
         likeTweet,
         saveTweet,
