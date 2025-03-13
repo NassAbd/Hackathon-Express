@@ -25,6 +25,29 @@ const controller = (usersList) => {
         }
     };
 
+
+    // Fonction pour récupérer tous les utilisateurs
+    const getUsersPlus = async (req, res) => {
+      try {
+        // const adminId = req.params.id; // Récupération de l'ID transmis
+    
+        // // Vérifier que l'ID transmis appartient bien à un admin
+        // const adminUser = await User.findById(adminId);
+    
+        // if (!adminUser || !adminUser.admin) {
+        //   return res.status(403).json({ message: "Accès refusé. Seul un administrateur peut voir cette liste." });
+        // }
+    
+        // Si l'utilisateur est bien admin, récupérer les utilisateurs
+        const users = await User.find().select("username email bio followers admin createdAt").sort({createdAt: -1});
+    
+        res.status(200).json(users);
+      } catch (error) {
+        res.status(500).json({ message: "Erreur serveur.", error });
+      }
+    };
+    
+
 // Fonction pour obtenir les informations d'un utilisateur par ID
     const getUserById = async (req, res) => {
         try {
@@ -256,6 +279,38 @@ const controller = (usersList) => {
       }
     };
 
+    const delUserByIdAdmin = async (req, res) => {
+      try {
+          // Vérifier si l'utilisateur existe
+          const user = await User.findById(req.params.id);
+  
+          if (!user) {
+              return res.status(404).json({ message: "Utilisateur non trouvé" });
+          }
+  
+          // Vérifier si l'utilisateur qui fait la requête est un administrateur
+          // const adminUser = await User.findById(req.user.id);
+          // if (!adminUser || !adminUser.admin) {
+          //     return res.status(403).json({ message: "Accès refusé. Seul un administrateur peut supprimer un utilisateur." });
+          // }
+  
+          // Supprimer l'utilisateur
+          await User.findByIdAndDelete(req.params.id);
+  
+          res.json({ message: "Utilisateur supprimé avec succès" });
+      } catch (err) {
+          console.error(err.message);
+  
+          // Gérer l'erreur si l'ID est invalide
+          if (err.name === "CastError") {
+              return res.status(400).json({ message: "ID invalide" });
+          }
+  
+          res.status(500).send("Erreur serveur");
+      }
+  };
+  
+
 
     return {
         getCurrentUser,
@@ -265,7 +320,9 @@ const controller = (usersList) => {
         getUserFollowers,
         followUserById,
         getListUserInMonth,
-        getListUserByDay
+        getListUserByDay,
+        getUsersPlus,
+        delUserByIdAdmin
     }
 }
 

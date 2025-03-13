@@ -131,6 +131,18 @@ const createTweet = async (req, res) => {
         }
     };
 
+
+    const getAllTweetsPlus = async (req, res) => {
+      try {
+          // Récupération des tweets par ordre décroissant de création
+          const tweets = await Tweet.find().select('author content likes retweets hashtags createdAt').sort({createdAt: -1});
+          res.json(tweets);
+      } catch (err) {
+          console.error(err.message);
+          res.status(500).send("Erreur serveur");
+      }
+    };
+
     const getPersonalizedFeed = async (req, res) => {
         try {
             const userId = req.user.id;
@@ -290,6 +302,9 @@ const createTweet = async (req, res) => {
             if (!tweet) {
                 return res.status(404).json({ message: "Tweet non trouvé" });
             }
+            // if (!adminUser || !adminUser.admin) {
+          //   return res.status(403).json({ message: "Accès refusé. Seul un administrateur peut voir cette liste." });
+          // }
     
             // Supprimer le tweet
             await Tweet.findByIdAndDelete(req.params.id);
@@ -704,7 +719,8 @@ const createTweet = async (req, res) => {
         reTweet,
         mentionUser,
         getTweetCountByMonth,
-        getTweetCountByDay
+        getTweetCountByDay,
+        getAllTweetsPlus
 
     }
 }

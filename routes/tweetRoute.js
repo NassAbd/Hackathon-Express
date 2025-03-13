@@ -19,19 +19,21 @@ const router = (userList, server) => {
         reTweet,
         mentionUser,
         getTweetCountByDay,
-        getTweetCountByMonth
+        getTweetCountByMonth,
+        getAllTweetsPlus
     } = require('../controllers/tweetController')(userList, server);
 
     const route = express.Router();
 
     route.post('/', authMiddleware, multer.single("file"), createTweet);
     route.get('/', authMiddleware, getTweets);
+    route.get('/tweetsPlus', getAllTweetsPlus);
     route.get('/all', authMiddleware, getAllTweets);
     route.get('/perso', authMiddleware, getPersonalizedFeed);
     route.get('/:id', authMiddleware, getTweetById);
     route.put('/:id', authMiddleware, putTweetById);
     route.delete('/:id', authMiddleware, delTweetById);
-    route.delete('/:id/admin', authMiddleware, delTweetByIdAdmin);
+    route.delete('/:id/admin', delTweetByIdAdmin);
 
     route.put('/like/:id', authMiddleware, likeTweet);
     route.put('/save/:id', authMiddleware, saveTweet);
@@ -43,6 +45,7 @@ const router = (userList, server) => {
     //backoffice data
     route.get('/getTweetCountByDay/:id/:range', getTweetCountByDay);
     route.get('/getTweetCountByMonth/:id/:range', getTweetCountByMonth);
+    
 
     return route
 }

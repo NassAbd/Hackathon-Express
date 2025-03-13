@@ -12,20 +12,32 @@ const router = (usersList) => {
         getUserFollowers,
         followUserById,
         getListUserInMonth,
-        getListUserByDay
+        getListUserByDay,
+        getUsersPlus,
+        delUserByIdAdmin
     } = require("../controllers/userController")(usersList);
+    
     const route = express.Router();
 
-    route.get("/current", authMiddleware, getCurrentUser);
-    route.get("/", authMiddleware, getUsers);
-    route.get('/:id', authMiddleware, getUserById);
+    
+    
+    //backoffice
+    route.get('/getListUserInMonth/:id/:range', getListUserInMonth);
+    //backoffice
+    route.get('/getListUserByDay/:id/:range', getListUserByDay);
+
+    route.delete('/:id/admin', delUserByIdAdmin);
     route.put('/update/:id', authMiddleware, updateUserById);
     route.get('/followers/:id', authMiddleware, getUserFollowers);
     route.put('/follow/:id', authMiddleware, followUserById);
 
-    //backoffice data
-    route.get('/getListUserInMonth/:id/:range', getListUserInMonth);
-    route.get('/getListUserByDay/:id/:range', getListUserByDay);
+    //backoffice get more info on user
+    route.get('/userPlus', getUsersPlus);
+
+    route.get("/current", authMiddleware, getCurrentUser);
+    route.get("/", getUsers);
+    route.get('/:id', authMiddleware, getUserById);
+    
 
     return route
 }
