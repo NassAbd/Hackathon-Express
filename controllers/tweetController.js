@@ -123,9 +123,20 @@ const controller = (usersList, server) => {
 
     const getAllTweetsPlus = async (req, res) => {
       try {
-          // Récupération des tweets par ordre décroissant de création
-          const tweets = await Tweet.find().select('author content likes retweets hashtags createdAt').sort({createdAt: -1});
-          res.json(tweets);
+
+        const adminId = req.params.userId; // Récupération de l'ID transmis
+              
+        // Vérifier que l'ID transmis appartient bien à un admin
+        const adminUser = await User.findById(adminId);
+    
+        if (!adminUser || !adminUser.admin) {
+            return res.status(403).json({ message: "Accès refusé." });
+        }
+        
+        // Récupération des tweets par ordre décroissant de création
+        const tweets = await Tweet.find().populate("author", "username").select('author content likes retweets hashtags createdAt').sort({createdAt: -1});
+    
+        res.json(tweets);
       } catch (err) {
           console.error(err.message);
           res.status(500).send("Erreur serveur");
@@ -297,6 +308,15 @@ const controller = (usersList, server) => {
 
     const delTweetByIdAdmin = async (req, res) => {
         try {
+            
+            const adminId = req.params.userId; // Récupération de l'ID transmis
+            
+            // Vérifier que l'ID transmis appartient bien à un admin
+            const adminUser = await User.findById(adminId);
+        
+            if (!adminUser || !adminUser.admin) {
+                return res.status(403).json({ message: "Accès refusé." });
+            }
             // Vérifier si le tweet existe
             const tweet = await Tweet.findById(req.params.id);
 
@@ -598,6 +618,16 @@ const controller = (usersList, server) => {
 
     const getTweetCountByDay = async (req, res) => {
         try {
+
+            const adminId = req.params.userId; // Récupération de l'ID transmis
+              
+            // Vérifier que l'ID transmis appartient bien à un admin
+            const adminUser = await User.findById(adminId);
+        
+            if (!adminUser || !adminUser.admin) {
+                return res.status(403).json({ message: "Accès refusé." });
+            }
+
             const dayOffset = parseInt(req.params.id, 10);
             const range = parseInt(req.params.range, 10);
 
@@ -657,6 +687,16 @@ const controller = (usersList, server) => {
 
     const getTweetCountByMonth = async (req, res) => {
         try {
+            
+            const adminId = req.params.userId; // Récupération de l'ID transmis
+              
+            // Vérifier que l'ID transmis appartient bien à un admin
+            const adminUser = await User.findById(adminId);
+        
+            if (!adminUser || !adminUser.admin) {
+                return res.status(403).json({ message: "Accès refusé." });
+            }
+
             const monthOffset = parseInt(req.params.id, 10);
             const range = parseInt(req.params.range, 10);
 

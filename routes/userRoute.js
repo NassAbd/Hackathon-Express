@@ -22,20 +22,20 @@ const router = (usersList) => {
     
     
     //backoffice
-    route.get('/getListUserInMonth/:id/:range', getListUserInMonth);
+    route.get('/getListUserInMonth/:id/:range/:userId', authMiddleware , getListUserInMonth);
     //backoffice
-    route.get('/getListUserByDay/:id/:range', getListUserByDay);
+    route.get('/getListUserByDay/:id/:range/:userId', authMiddleware , getListUserByDay);
 
-    route.delete('/:id/admin', delUserByIdAdmin);
+    route.delete('/:id/admin/:userId', authMiddleware, delUserByIdAdmin);
     route.put('/update/:id', authMiddleware, updateUserById);
     route.get('/followers/:id', authMiddleware, getUserFollowers);
     route.put('/follow/:id', authMiddleware, followUserById);
 
     //backoffice get more info on user
-    route.get('/userPlus', getUsersPlus);
+    route.get('/userPlus/:userId', authMiddleware ,getUsersPlus);
 
     route.get("/current", authMiddleware, getCurrentUser);
-    route.get("/", getUsers);
+    route.get("/", authMiddleware , getUsers);
     route.get('/:id', authMiddleware, getUserById);
     
 
